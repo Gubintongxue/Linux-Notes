@@ -376,7 +376,9 @@ Number  Start （sector）    End （sector）  Size       Code  Name
  4        65026048        67123199   1024.0 MiB  8300  Linux filesystem
 ```
 
-重点在“ Last sector ”那一行，那行绝对不要使用默认值！因为默认值会将所有的容量用光！因此它默认选择最大的扇区号码！ 因为我们仅要 1GB 而已，**所以你得要加上 +1G 这样即可**！不需要计算 sector 的数量，gdisk 会根据你填写的数值， 直接计算出最接近该容量的扇区数！每次新增完毕后，请立即“ p ”查看一下结果喔！请继续处理后续的两个分区！ 最终出现的画面会有点像下面这样才对！
+重点在“ Last sector ”那一行，那行绝对不要使用默认值！因为默认值会将所有的容量用光！因此它默认选择最大的扇区号码！ 因为我们仅要 1GB 而已，**所以你得要加上 +1G 这样即可**！不需要计算 sector 的数量，gdisk 会根据你填写的数值， 直接计算出最接近该容量的扇区数！每次新增完毕后，请立即“ p ”查看一下结果喔！
+
+**上面展示了一个Linu系统的分区方式，请继续处理后续的两个分区！ 最终出现的画面会有点像下面这样才对！**
 
 ```
 Command （? for help）: p
@@ -422,6 +424,12 @@ major minor  #blocks  name
 
 - partprobe 更新 Linux 核心的分区表信息
 
+  lsblk(list block devices)列出/dev/vda这个磁盘设备的分区信息以及这些分区的挂载点
+
+  补充：Ext4(Fourth Extended File System)第四代扩展文件系统
+
+  ​			XFS高性能日志文件系统
+
 ```
 [root@study ~]# partprobe [-s]  # 你可以不要加 -s ！那么屏幕不会出现讯息！
 [root@study ~]# partprobe -s    # 不过还是建议加上 -s 比较清晰！
@@ -455,11 +463,11 @@ major minor  #blocks  name
 
 - 用 gdisk 删除一个分区
 
-已经学会了新增分区，那么删除分区呢？好！现在让我们将刚刚创建的 /dev/vda6 删除！你该如何进行呢？鸟哥下面很快的处理一遍， 大家赶紧来瞧一瞧先！
+​	将刚刚创建的 /dev/vda6 删除！
 
 ```
-[root@study ~]# gdisk /dev/vda
-Command （? for help）: p
+[root@study ~]# gdisk /dev/vda #启动gdisk工具，并指定/dev/vda作为要操作的磁盘设备。
+Command （? for help）: p p命令用于打印当前分区表的状态。它会列出所有现有的分区，包括每个分区的编号、起始扇区、结束扇区、大小、类型代码（Code）和分区名（如果有的话）。
 Number  Start （sector）    End （sector）  Size       Code  Name
    1            2048            6143   2.0 MiB     EF02
    2            6144         2103295   1024.0 MiB  0700
@@ -468,30 +476,32 @@ Number  Start （sector）    End （sector）  Size       Code  Name
    5        67123200        69220351   1024.0 MiB  0700  Microsoft basic data
    6        69220352        70244351   500.0 MiB   8200  Linux swap
 
-Command （? for help）: d
+Command （? for help）: d #d命令用于删除一个分区。在执行d命令后，gdisk会提示你输入要删除的分区编号（在这个例子中是6，即/dev/vda6）。
 Partition number （1-6）: 6
 
-Command （? for help）: p
+Command （? for help）: p 
 # 你会发现 /dev/vda6 不见了！非常棒！没问题就写入吧！
 
-Command （? for help）: w
+Command （? for help）: w # w命令用于将你在gdisk中所做的更改写入磁盘的分区表，并退出gdisk。这是一个非常重要的步骤，因为它实际上会将你的更改应用到磁盘上。在执行w命令时，gdisk通常会询问你是否确定要写入更改（例如，通过询问你是否想要保存更改）。
+
 # 同样会有一堆讯息！鸟哥就不重复输出了！自己选择 y 来处理吧！
 
-[root@study ~]# lsblk
+[root@study ~]# lsblk #lsblk命令用于列出所有可用的存储设备及其分区。在更改分区表后，立即使用lsblk可能会显示旧的分区信息，因为内核可能还没有更新其内部的分区表缓存。
 # 你会发现！怪了！怎么还是有 /dev/vda6 呢？没办法！还没有更新核心的分区表啊！所以当然有错！
 
-[root@study ~]# partprobe -s
+[root@study ~]# partprobe -s #partprobe命令用于通知内核分区表已经更改，并请求内核重新读取分区表。-s选项（在某些版本的partprobe中可能不可用或行为不同）通常用于静默模式，但在很多情况下，即使没有-s选项，partprobe也会在没有额外输出的情况下工作。然而，重要的是要调用partprobe（无论是否带有-s选项），以便内核能够识别到分区表的更改。
+
 [root@study ~]# lsblk
 # 这个时候，那个 /dev/vda6 才真的消失不见了！了解吧！
 ```
 
-==万分注意！不要去处理一个正在使用中的分区！例如，我们的系统现在已经使用了 /dev/vda2 ，那如果你要删除 /dev/vda2 的话， 必须要先将 /dev/vda2 卸载，否则直接删除该分区的话，虽然磁盘还是慧写入正确的分区信息，但是核心会无法更新分区表的信息的！ 另外，文件系统与 Linux 系统的稳定性，恐怕也会变得怪怪的！反正！千万不要处理正在使用中的文件系统就对了！==
+==万分注意！不要去处理一个正在使用中的分区！例如，我们的系统现在已经使用了 /dev/vda2 ，那如果你要删除 /dev/vda2 的话， 必须要先将 /dev/vda2 卸载，否则直接删除该分区的话，虽然磁盘还是会写入正确的分区信息，但是核心会无法更新分区表的信息的！ 另外，文件系统与 Linux 系统的稳定性，恐怕也会变得怪怪的！反正！千万不要处理正在使用中的文件系统就对了！==
 
 - fdisk
 
 虽然 MBR 分区表在未来应该会慢慢的被淘汰，毕竟现在磁盘容量随便都大于 2T 以上了。而对于在 CentOS 7.x 中还无法完整支持 GPT 的 fdisk 来说， 这家伙真的英雄无用武之地了啦！不过依旧有些旧的系统，以及虚拟机的使用上面，还是有小磁盘存在的空间！这时处理 MBR 分区表， 就得要使用 fdisk 啰！
 
-因为 fdisk 跟 gdisk 使用的方式几乎一样！只是一个使用 ? 作为指令提示数据，一个使用 m 作为提示这样而已。 此外，fdisk 有时会使用柱面 （cylinder） 作为分区的最小单位，与 gdisk 默认使用 sector 不太一样！大致上只是这点差别！ 另外， MBR 分区是有限制的 （Primary, Extended, Logical...）！不要忘记了！鸟哥这里不使用范例了，毕竟示范机上面也没有 MBR 分区表... 这里仅列出相关的指令给大家对照参考啰！
+因为 fdisk 跟 gdisk 使用的方式几乎一样！只是一个使用 ? 作为指令提示数据，一个使用 m 作为提示这样而已。 此外，**fdisk 有时会使用柱面 （cylinder） 作为分区的最小单位，与 gdisk 默认使用 sector 不太一样！**大致上只是这点差别！ 另外， MBR 分区是有限制的 （Primary, Extended, Logical...）！
 
 ```
 [root@study ~]# fdisk /dev/sda
@@ -521,7 +531,7 @@ Command action
 
 - XFS 文件系统 mkfs.xfs
 
-我们常听到的“格式化”其实应该称为“创建文件系统 （make filesystem）”才对啦！所以使用的指令是 mkfs 喔！那我们要创建的其实是 xfs 文件系统， 因此使用的是 mkfs.xfs 这个指令才对。这个指令是这样使用的：
+常听到的“格式化”其实应该称为“创建文件系统 （make filesystem）”！所以使用的指令是 mkfs 喔！那我们要创建的其实是 xfs 文件系统， 因此使用的是 mkfs.xfs 这个指令才对。这个指令是这样使用的：
 
 ```
 [root@study ~]# mkfs.xfs [-b bsize] [-d parms] [-i parms] [-l parms] [-L label] [-f] \
@@ -568,7 +578,9 @@ realtime =none            extsz=4096   blocks=0, rtextents=0
 # 确定创建好 xfs 文件系统了！
 ```
 
-使用默认的 xfs 文件系统参数来创建系统即可！速度非常快！如果我们有其他额外想要处理的项目，才需要加上一堆设置值！举例来说，因为 xfs 可以使用多个数据流来读写系统，以增加速度，因此那个 agcount 可以跟 CPU 的核心数来做搭配！举例来说，如果我的服务器仅有一颗 4 核心，但是有启动 Intel 超线程功能，则系统会仿真出 8 颗 CPU 时，那个 agcount 就可以设置为 8 喔！举个例子来瞧瞧：
+**使用默认的 xfs 文件系统参数来创建系统即可！速度非常快！如果我们有其他额外想要处理的项目，才需要加上一堆设置值！**
+
+举例来说，因为 xfs 可以使用多个数据流来读写系统，以增加速度，因此那个 agcount 可以跟 CPU 的核心数来做搭配！举例来说，如果我的服务器仅有一颗 4 核心，但是有启动 Intel 超线程功能，则系统会仿真出 8 颗 CPU 时，那个 agcount 就可以设置为 8 喔！举个例子来瞧瞧：
 
 ```
 范例：找出你系统的 CPU 数，并据以设置你的 agcount 数值
@@ -588,13 +600,17 @@ meta-data=/dev/vda4       isize=256    agcount=2, agsize=131072 blks
 
 - XFS 文件系统 for RAID 性能优化 （Optional）
 
-我们在第14章会持续谈到进阶文件系统的设置，其中就有磁盘阵列这个东西！磁盘阵列是多颗磁盘组成一颗大磁盘的意思， 利用同步写入到这些磁盘的技术，不但可以加快读写速度，还可以让某一颗磁盘坏掉时，整个文件系统还是可以持续运行的状态！那就是所谓的容错。
+在第14章会持续谈到进阶文件系统的设置，其中就有磁盘阵列这个东西！**磁盘阵列是多颗磁盘组成一颗大磁盘的意思， 利用同步写入到这些磁盘的技术，不但可以加快读写速度，还可以让某一颗磁盘坏掉时，整个文件系统还是可以持续运行的状态**！那就是所谓的容错。
 
-基本上，磁盘阵列 （RAID） 就是通过将文件先细分为数个小型的分区区块 （stripe） 之后，然后将众多的 stripes 分别放到磁盘阵列里面的所有磁盘， 所以一个文件是被同时写入到多个磁盘去，当然性能会好一些。为了文件的保全性，所以在这些磁盘里面，会保留数个 （与磁盘阵列的规划有关） 备份磁盘 （parity disk）， 以及可能会保留一个以上的备用磁盘 （spare disk），这些区块基本上会占用掉磁盘阵列的总容量，不过对于数据的保全会比较有保障！
+基本上，**磁盘阵列 （RAID） 就是通过将文件先细分为数个小型的分区区块 （stripe） 之后，然后将众多的 stripes 分别放到磁盘阵列里面的所有磁盘**， 所以一个文件是被同时写入到多个磁盘去，当然性能会好一些。为了文件的保全性，所以在这些磁盘里面，会保留数个 （与磁盘阵列的规划有关） 备份磁盘 （parity disk）， 以及可能会保留一个以上的备用磁盘 （spare disk），这些区块基本上会占用掉磁盘阵列的总容量，不过对于数据的保全会比较有保障！
 
-那个分区区块 stripe 的数值大多介于 4K 到 1M 之间，这与你的磁盘阵列卡支持的项目有关。stripe 与你的文件数据容量以及性能相关性较高。 当你的系统大多是大型文件时，一般建议 stripe 可以设置大一些，这样磁盘阵列读/写的频率会降低，性能会提升。如果是用于系统， 那么小文件比较多的情况下， stripe 建议大约在 64K 左右可能会有较佳的性能。不过，还是都须要经过测试啦！完全是 case by case 的情况。 更多详细的磁盘阵列我们在第 14 章再来谈，这里先有个大概的认识即可。14 章看完之后，再回来这个小节瞧瞧啰！
+那个分区区块 stripe 的数值大多介于 4K 到 1M 之间，这与你的磁盘阵列卡支持的项目有关。stripe 与你的文件数据容量以及性能相关性较高。 **当你的系统大多是大型文件时，一般建议 stripe 可以设置大一些，这样磁盘阵列读/写的频率会降低，性能会提升。如果是用于系统， 那么小文件比较多的情况下， stripe 建议大约在 64K 左右可能会有较佳的性能**。不过，还是都须要经过测试啦！完全是 case by case 的情况。 
 
-文件系统的读写要能够有最优化，最好能够搭配磁盘阵列的参数来设计，这样性能才能够起来！也就是说，你可以先在文件系统就将 stripe 规划好， 那交给 RAID 去存取时，它就无须重复进行文件的 stripe 过程，性能当然会更好！那格式化时，最优化性能与什么咚咚有关呢？我们来假设个环境好了：
+文件系统的读写要能够有最优化，最好能够搭配磁盘阵列的参数来设计，这样性能才能够起来！也就是说，你可以先在文件系统就将 stripe 规划好， 那交给 RAID 去存取时，它就无须重复进行文件的 stripe 过程，性能当然会更好！
+
+
+
+那格式化时，最优化性能与什么咚咚有关呢？我们来假设个环境好了：
 
 - 我有两个线程的 CPU 数量，所以 agcount 最好指定为 2
 - 当初设置 RAID 的 stripe 指定为 256K 这么大，因此 su 最好设置为 256k
@@ -688,7 +704,9 @@ mkfs         mkfs.btrfs   mkfs.cramfs  mkfs.ext2    mkfs.ext3    mkfs.ext4
 mkfs.fat     mkfs.minix   mkfs.msdos   mkfs.vfat    mkfs.xfs
 ```
 
-所以系统还有支持 ext2/ext3/vfat 等等多种常用的文件系统喔！那如果要将刚刚的 /dev/vda5 重新格式化为 VFAT 文件系统呢？
+所以系统还有支持 ext2/ext3/vfat 等等多种常用的文件系统喔！
+
+那如果要**将刚刚的 /dev/vda5 重新格式化为 VFAT 文件系统**呢？
 
 ```
 [root@study ~]# mkfs -t vfat /dev/vda5
@@ -705,15 +723,11 @@ mkfs.fat     mkfs.minix   mkfs.msdos   mkfs.vfat    mkfs.xfs
 
 ![鸟哥的图示](image/vbird_face.gif)
 
-**Tips** 越来越多同学上课都不听讲，只是很单纯的将鸟哥在屏幕操作的过程“拍照”下来而已～当鸟哥说“开始操作！等一下要检查喔！” 大家就拼命的从手机里面将刚刚的照片抓出来，一个一个指令照着打～
-
-不过，屏幕并不能告诉你“ [tab] 按钮其实不是按下 enter”的结果， 如上所示，同学拼命的按下 mkfs 之后，却没有办法得到下面出现的众多指令，就开始举手...老师！我没办法作到你讲的画面...
-
-拜托读者们，请注意：“我们是要练习 Linux 系统，不是要练习 "英文打字"”啦！英文打字回家练就好了！ @_@
-
 ### 7.3.4 文件系统检验
 
-由于系统在运行时谁也说不准啥时硬件或者是电源会有问题，所以“死机”可能是难免的情况（不管是硬件还是软件）。 现在我们知道文件系统运行时会有磁盘与内存数据非同步的状况发生，因此莫名其妙的死机非常可能导致文件系统的错乱。 问题来啦，如果文件系统真的发生错乱的话，那该如何是好？就...挽救啊！不同的文件系统救援的指令不太一样，我们主要针对 xfs 及 ext4 这两个主流来说明而已喔！
+由于系统在运行时谁也说不准啥时硬件或者是电源会有问题，所以“死机”可能是难免的情况（不管是硬件还是软件）。 现在我们知道文件系统运行时会有磁盘与内存数据非同步的状况发生，因此莫名其妙的死机非常可能导致文件系统的错乱。 问题来啦，如果文件系统真的发生错乱的话，那该如何是好？就...挽救啊！
+
+不同的文件系统救援的指令不太一样，我们主要针对 xfs 及 ext4 这两个主流来说明而已喔！
 
 - xfs_repair 处理 XFS 文件系统
 
@@ -746,7 +760,9 @@ xfs_repair: /dev/centos/home contains a mounted and writable filesystem
 fatal error -- couldn't initialize XFS library
 ```
 
-xfs_repair 可以检查/修复文件系统，不过，因为修复文件系统是个很庞大的任务！因此，修复时该文件系统不能被挂载！ 所以，检查与修复 /dev/vda4 没啥问题，但是修复 /dev/centos/home 这个已经挂载的文件系统时，嘿嘿！就出现上述的问题了！ 没关系，若可以卸载，卸载后再处理即可。
+xfs_repair 可以检查/修复文件系统，**不过，因为修复文件系统是个很庞大的任务！因此，修复时该文件系统不能被挂载！** 
+
+所以，检查与修复 /dev/vda4 没啥问题，但是修复 /dev/centos/home 这个已经挂载的文件系统时，嘿嘿！就出现上述的问题了！ 没关系，若可以卸载，卸载后再处理即可。
 
 Linux 系统有个设备无法被卸载，那就是根目录啊！如果你的根目录有问题怎办？这时得要进入单人维护或救援模式，然后通过 -d 这个选项来处理！ 加入 -d 这个选项后，系统会强制检验该设备，检验完毕后就会自动重新开机啰！不过，鸟哥完全不打算要进行这个指令的实做... 永远都不希望实做这东西...
 
@@ -808,10 +824,12 @@ Pass 1: Checking inodes, blocks, and sizes
 我们在本章一开始时的[挂载点的意义](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html#harddisk-mount)当中提过挂载点是目录， 而这个目录是进入磁盘分区（其实是文件系统啦！）的入口就是了。不过要进行挂载前，你最好先确定几件事：
 
 - 单一文件系统不应该被重复挂载在不同的挂载点（目录）中；
-- 单一目录不应该重复挂载多个文件系统；
-- 要作为挂载点的目录，理论上应该都是空目录才是。
+- **单一目录不应该重复挂载多个文件系统；**
+- **要作为挂载点的目录，理论上应该都是空目录才是。**
 
-尤其是上述的后两点！如果你要用来挂载的目录里面并不是空的，那么挂载了文件系统之后，原目录下的东西就会暂时的消失。 举个例子来说，假设你的 /home 原本与根目录 （/） 在同一个文件系统中，下面原本就有 /home/test 与 /home/vbird 两个目录。然后你想要加入新的磁盘，并且直接挂载 /home 下面，那么当你挂载上新的分区时，则 /home 目录显示的是新分区内的数据，至于原先的 test 与 vbird 这两个目录就会暂时的被隐藏掉了！注意喔！并不是被覆盖掉， 而是暂时的隐藏了起来，等到新分区被卸载之后，则 /home 原本的内容就会再次的跑出来啦！
+尤其是上述的后两点！**如果你要用来挂载的目录里面并不是空的，那么挂载了文件系统之后，原目录下的东西就会暂时的消失。**
+
+ 举个例子来说，假设你的 /home 原本与根目录 （/） 在同一个文件系统中，下面原本就有 /home/test 与 /home/vbird 两个目录。然后你想要加入新的磁盘，并且直接挂载 /home 下面，那么当你挂载上新的分区时，**则 /home 目录显示的是新分区内的数据，至于原先的 test 与 vbird 这两个目录就会暂时的被隐藏掉了**！注意喔！并**不是被覆盖掉， 而是暂时的隐藏了起来，等到新分区被卸载之后，则 /home 原本的内容就会再次的跑出来**！
 
 而要将文件系统挂载到我们的 Linux 系统上，就要使用 mount 这个指令啦！ 不过，这个指令真的是博大精深～粉难啦！我们学简单一点啊～ ^_^
 
@@ -844,12 +862,16 @@ Pass 1: Checking inodes, blocks, and sizes
       remount:       重新挂载，这在系统出错，或重新更新参数时，很有用！
 ```
 
-基本上，CentOS 7 已经太聪明了，因此你不需要加上 -t 这个选项，系统会自动的分析最恰当的文件系统来尝试挂载你需要的设备！ 这也是使用 blkid 就能够显示正确的文件系统的缘故！那 CentOS 是怎么找出文件系统类型的呢？ 由于文件系统几乎都有 superblock ，我们的 Linux 可以通过分析 superblock 搭配 Linux 自己的驱动程序去测试挂载， 如果成功的套和了，就立刻自动的使用该类型的文件系统挂载起来啊！那么系统有没有指定哪些类型的 filesystem 才需要进行上述的挂载测试呢？ 主要是参考下面这两个文件：
+基本上，CentOS 7 已经太聪明了，因此你不需要加上 -t 这个选项，系统会自动的分析最恰当的文件系统来尝试挂载你需要的设备！ 这也是使用 blkid 就能够显示正确的文件系统的缘故！
+
+
+
+那 CentOS 是**怎么找出文件系统类型的呢？ 由于文件系统几乎都有 superblock** ，我们的 Linux 可以通过分析 superblock 搭配 Linux 自己的驱动程序去测试挂载， 如果成功的套和了，就立刻自动的使用该类型的文件系统挂载起来啊！那么系统有没有指定哪些类型的 filesystem 才需要进行上述的挂载测试呢？ 主要是参考下面这两个文件：
 
 - /etc/filesystems：系统指定的测试挂载文件系统类型的优先顺序；
 - /proc/filesystems：Linux系统已经载入的文件系统类型。
 
-那我怎么知道我的 Linux 有没有相关文件系统类型的驱动程序呢？我们 Linux 支持的文件系统之驱动程序都写在如下的目录中：
+那我怎么知道我的 Linux 有没有相关文件系统类型的驱动程序呢？==我们 Linux 支持的文件系统之驱动程序都写在如下的目录中==：
 
 - /lib/modules/$（uname -r）/kernel/fs/
 
@@ -905,7 +927,9 @@ Filesystem     1K-blocks    Used Available Use% Mounted on
 # 怎么会使用掉 100% 呢？是啊！因为是 DVD 啊！所以无法再写入了啊！
 ```
 
-光驱一挂载之后就无法退出光盘片了！除非你将他卸载才能够退出！ 从上面的数据你也可以发现，因为是光盘嘛！所以磁盘使用率达到 100% ，因为你无法直接写入任何数据到光盘当中！ 此外，如果你使用的是图形界面，那么系统会自动的帮你挂载这个光盘到 /media/ 里面去喔！也可以不卸载就直接退出！ 但是文字界面没有这个福利就是了！ ^_^
+光驱一挂载之后就无法退出光盘片了！除非你将他卸载才能够退出！
+
+ 从上面的数据你也可以发现，因为是光盘嘛！所以磁盘使用率达到 100% ，因为你无法直接写入任何数据到光盘当中！ 此外，如果你使用的是图形界面，那么系统会自动的帮你挂载这个光盘到 /media/ 里面去喔！也可以不卸载就直接退出！ 但是文字界面没有这个福利就是了！ ^_^
 
 ![鸟哥的图示](image/vbird_face.gif)
 
@@ -1100,7 +1124,7 @@ new UUID = e0fa7252-b374-4a06-987a-3cb14f415488
 
 不知道你会不会有这样的疑问：“鸟哥啊，既然 mount 后面使用设备文件名 （/dev/vda4） 也可以挂载成功，那你为什么要用很讨厌的很长一串的 UUID 来作为你的挂载时写入的设备名称啊？”问的好！原因是这样的：“因为你没有办法指定这个磁盘在所有的 Linux 系统中，文件名一定都会是 /dev/vda ！”
 
-举例来说，我们刚刚使用的U盘在鸟哥这个测试系统当中查询到的文件名是 /dev/sda，但是当这个U盘放到其他的已经有 /dev/sda 文件名的 Linux 系统下，它的文件名就会被指定成为 /dev/sdb 或 /dev/sdc 等等。反正，不会是 /dev/sda 了！那我怎么用同一个指令去挂载这只U盘呢？ 当然有问题吧！但是 UUID 可是很难重复的！看看上面 uuidgen 产生的结果你就知道了！所以你可以确定该名称不会被重复！ 这对系统管理上可是相当有帮助的！它也比 LABEL name 要更精准的多呢！ ^_^
+举例来说，我们刚刚使用的U盘在鸟哥这个测试系统当中查询到的文件名是 /dev/sda，但是当这个U盘放到其他的已经有 /dev/sda 文件名的 Linux 系统下，它的文件名就会被指定成为 /dev/sdb 或 /dev/sdc 等等。反正，不会是 /dev/sda 了！那我怎么用同一个指令去挂载这只U盘呢？ 当然有问题吧！**但是 UUID 可是很难重复的**！看看上面 uuidgen 产生的结果你就知道了！所以你可以确定该名称不会被重复！ 这对系统管理上可是相当有帮助的！它也比 LABEL name 要更精准的多呢！ ^_^
 
 - tune2fs 修改 ext4 的 label name 与 UUID
 
@@ -1122,4 +1146,553 @@ Filesystem volume name:   vbird_ext4
 [root@study ~]# mount LABEL=vbird_ext4 /data/ext4
 ```
 
-这个指令的功能其实很广泛啦～上面鸟哥仅列出很简单的一些参数而已，更多的用法请自行参考 man tune2fs 。
+这个指令的功能其实很广泛啦～上面仅列出很简单的一些参数而已，更多的用法请自行参考 man tune2fs 。
+
+## 7.4设置开机挂载
+
+手动处理 mount 不是很人性化，我们总是需要让系统“自动”在开机时进行挂载的！本小节就是在谈这玩意儿！ 另外，从 FTP 服务器捉下来的镜像文件能否不用烧录就可以读取内容？我们也需要谈谈先！
+
+### 7.4.1 开机挂载/etc/fstab 及/etc/mtab
+
+开机将文件系统挂载好，需要去/etc/fstab中去修改
+
+**系统挂载的一些限制：**
+
+- 根目录 / 是必须挂载的﹐而且一定要先于其它 mount point 被挂载进来。
+- 其它 mount point 必须为已创建的目录﹐可任意指定﹐但一定要遵守必须的系统目录架构原则 （FHS）
+- 所有 mount point 在同一时间之内﹐只能挂载一次。
+- 所有 partition 在同一时间之内﹐只能挂载一次。
+- 如若进行卸载﹐您必须先将工作目录移到 mount point（及其子目录） 之外。
+
+直接查阅一下 /etc/fstab 这个文件的内容吧！
+
+```
+[root@study ~]# cat /etc/fstab
+# Device                              Mount point  filesystem parameters    dump fsck
+/dev/mapper/centos-root                   /       xfs     defaults            0 0
+UUID=94ac5f77-cb8a-495e-a65b-2ef7442b837c /boot   xfs     defaults            0 0
+/dev/mapper/centos-home                   /home   xfs     defaults            0 0
+/dev/mapper/centos-swap                   swap    swap    defaults            0 0
+```
+
+其实 /etc/fstab （filesystem table） 就是将我们利用 [mount](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html#mount) 指令进行挂载时， 将所有的选项与参数写入到这个文件中就是了。除此之外， /etc/fstab 还加入了 dump 这个备份用指令的支持！ 与开机时是否进行文件系统检验 [fsck](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html#fsck) 等指令有关。 这个文件的内容共有六个字段，这六个字段非常的重要！你“一定要背起来”才好！ 各个字段的总结数据与详细数据如下：
+
+![鸟哥的图示](image/vbird_face-17218746478341.gif)
+
+**Tips** 鸟哥比较龟毛一点，因为某些 distributions 的 /etc/fstab 文件排列方式蛮丑的， 虽然每一栏之间只要以空白字符分开即可，但就是觉得丑，所以通常鸟哥就会自己排列整齐， 并加上注解符号（就是 # ），来帮我记忆这些信息！
+
+```
+[设备/UUID等]  [挂载点]  [文件系统]  [文件系统参数]  [dump]  [fsck]
+```
+
+- 第一栏：磁盘设备文件名/UUID/LABEL name：
+
+这个字段可以填写的数据主要有三个项目：
+
+- 文件系统或磁盘的设备文件名，如 /dev/vda2 等
+- 文件系统的 UUID 名称，如 UUID=xxx
+- 文件系统的 LABEL 名称，例如 LABEL=xxx
+
+因为每个文件系统都可以有上面三个项目，所以你喜欢哪个项目就填哪个项目！无所谓的！只是从鸟哥测试机的 /etc/fstab 里面看到的，在挂载点 /boot 使用的已经是 UUID 了喔！那你会说不是还有多个写 /dev/mapper/xxx 的吗？怎么回事啊？ 因为那个是 LVM 啊！LVM 的文件名在你的系统中也算是独一无二的，这部份我们在后续章节再来谈。 不过，如果为了一致性，你还是可以将他改成 UUID 也没问题喔！（鸟哥还是比较建议使用 UUID 喔！） 要记得使用 blkid 或 xfs_admin 来查询 UUID 喔！
+
+- 第二栏：挂载点 （mount point）：：
+
+就是挂载点啊！挂载点是什么？一定是目录啊～要知道啊！忘记的话，请回本章稍早之前的数据瞧瞧喔！
+
+- 第三栏：磁盘分区的文件系统：
+
+在手动挂载时可以让系统自动测试挂载，但在这个文件当中我们必须要手动写入文件系统才行！ 包括 xfs, ext4, vfat, reiserfs, nfs 等等。
+
+- 第四栏：文件系统参数：
+
+记不记得我们在 [mount](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html#mount) 这个指令中谈到很多特殊的文件系统参数？ 还有我们使用过的“-o codepage=950”？这些特殊的参数就是写入在这个字段啦！ 虽然之前在 [mount](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html#mount) 已经提过一次，这里我们利用表格的方式再汇整一下：
+
+| 参数                              | 内容意义                                                     |
+| --------------------------------- | ------------------------------------------------------------ |
+| async/sync 非同步/同步            | 设置磁盘是否以非同步方式运行！默认为 async（性能较佳）       |
+| auto/noauto 自动/非自动           | 当下达 mount -a 时，此文件系统是否会被主动测试挂载。默认为 auto。 |
+| rw/ro 可读写/只读                 | 让该分区以可读写或者是只读的型态挂载上来，如果你想要分享的数据是不给使用者随意变更的， 这里也能够设置为只读。则不论在此文件系统的文件是否设置 w 权限，都无法写入喔！ |
+| exec/noexec 可执行/不可执行       | 限制在此文件系统内是否可以进行“执行”的工作？如果是纯粹用来储存数据的目录， 那么可以设置为 noexec 会比较安全。不过，这个参数也不能随便使用，因为你不知道该目录下是否默认会有可执行文件。举例来说，如果你将 noexec 设置在 /var ，当某些软件将一些可执行文件放置于 /var 下时，那就会产生很大的问题喔！ 因此，建议这个 noexec 最多仅设置于你自订或分享的一般数据目录。 |
+| user/nouser 允许/不允许使用者挂载 | 是否允许使用者使用 mount指令来挂载呢？一般而言，我们当然不希望一般身份的 user 能使用 mount 啰，因为太不安全了，因此这里应该要设置为 nouser 啰！ |
+| suid/nosuid 具有/不具有 suid 权限 | 该文件系统是否允许 SUID 的存在？如果不是可执行文件放置目录，也可以设置为 nosuid 来取消这个功能！ |
+| defaults                          | 同时具有 **rw, suid, dev, exec, auto, nouser, async** 等参数。 基本上，默认情况使用 defaults 设置即可！ |
+
+- 第五栏：能否被 dump 备份指令作用：
+
+dump 是一个用来做为备份的指令，不过现在有太多的备份方案了，所以这个项目可以不要理会啦！直接输入 0 就好了！
+
+- 第六栏：是否以 fsck 检验扇区：
+
+早期开机的流程中，会有一段时间去检验本机的文件系统，看看文件系统是否完整 （clean）。 不过这个方式使用的主要是通过 fsck 去做的，我们现在用的 xfs 文件系统就没有办法适用，因为 xfs 会自己进行检验，不需要额外进行这个动作！所以直接填 0 就好了。
+
+好了，那么让我们来处理一下我们的新建的文件系统，看看能不能开机就挂载呢？
+
+例题：假设我们要将 /dev/vda4 每次开机都自动挂载到 /data/xfs ，该如何进行？答：首先，请用 [nano](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html#nano) 将下面这一行写入 /etc/fstab 最后面中；
+
+```
+[root@study ~]# nano /etc/fstab
+UUID="e0fa7252-b374-4a06-987a-3cb14f415488"  /data/xfs  xfs  defaults  0 0
+```
+
+再来看看 /dev/vda4 是否已经挂载，如果挂载了，请务必卸载再说！
+
+```
+[root@study ~]# df
+Filesystem              1K-blocks    Used Available Use% Mounted on
+/dev/vda4                 1038336   32864   1005472   4% /data/xfs
+# 竟然不知道何时被挂载了？赶紧给他卸载先！
+# **因为，如果要被挂载的文件系统已经被挂载了（无论挂载在哪个目录），那测试就不会进行喔！**
+
+[root@study ~]# umount /dev/vda4
+```
+
+最后测试一下刚刚我们写入 /etc/fstab 的语法有没有错误！这点很重要！因为这个文件如果写错了， 则你的 Linux 很可能将无法顺利开机完成！所以请务必要测试测试喔！
+
+```
+[root@study ~]# mount -a
+[root@study ~]# df /data/xfs
+```
+
+最终有看到 /dev/vda4 被挂载起来的信息才是成功的挂载了！而且以后每次开机都会顺利的将此文件系统挂载起来的！ 现在，你可以下达 reboot 重新开机，然后看一下默认有没有多一个 /dev/vda4 呢？
+
+/etc/fstab 是开机时的配置文件，不过，实际 filesystem 的挂载是记录到 /etc/mtab 与 /proc/mounts 这两个文件当中的。每次我们在更动 filesystem 的挂载时，也会同时更动这两个文件喔！但是，万一发生你在 /etc/fstab 输入的数据错误，导致无法顺利开机成功，而进入单人维护模式当中，那时候的 / 可是 read only 的状态，当然你就无法修改 /etc/fstab ，也无法更新 /etc/mtab 啰～那怎么办？没关系，可以利用下面这一招：
+
+```
+[root@study ~]# mount -n -o remount,rw /
+```
+
+### 7.4.2 特殊设备 loop 挂载 （镜像文件不烧录就挂载使用）
+
+如果有光盘镜像文件，或者是使用文件作为磁盘的方式时，那就得要使用特别的方法来将他挂载起来，不需要烧录啦！
+
+- 挂载光盘/DVD镜像文件
+
+想像一下如果今天我们从国家高速网络中心（[http://ftp.twaren.net](http://ftp.twaren.net/)）或者是昆山科大（[http://ftp.ksu.edu.tw](http://ftp.ksu.edu.tw/)）下载了 Linux 或者是其他所需光盘/DVD的镜像文件后， 难道一定需要烧录成为光盘才能够使用该文件里面的数据吗？当然不是啦！我们可以通过 loop 设备来挂载的！
+
+那要如何挂载呢？鸟哥将整个 CentOS 7.x 的 DVD 镜像文件捉到测试机上面，然后利用这个文件来挂载给大家参考看看啰！
+
+```
+[root@study ~]# ll -h /tmp/CentOS-7.0-1406-x86_64-DVD.iso
+-rw-r--r--. 1 root root 3.9G Jul  7  2014 /tmp/CentOS-7.0-1406-x86_64-DVD.iso
+# 看到上面的结果吧！这个文件就是镜像文件，文件非常的大吧！
+
+[root@study ~]# mkdir /data/centos_dvd
+[root@study ~]# mount -o loop /tmp/CentOS-7.0-1406-x86_64-DVD.iso /data/centos_dvd
+[root@study ~]# df /data/centos_dvd
+Filesystem     1K-blocks    Used Available Use% Mounted on
+/dev/loop0       4050860 4050860         0 100% /data/centos_dvd
+# 就是这个项目！ .iso 镜像文件内的所有数据可以在 /data/centos_dvd 看到！
+
+[root@study ~]# ll /data/centos_dvd
+total 607
+-rw-r--r--. 1  500  502     14 Jul  5  2014 CentOS_BuildTag &lt;==瞧！就是DVD的内容啊！
+drwxr-xr-x. 3  500  502   2048 Jul  4  2014 EFI
+-rw-r--r--. 1  500  502    611 Jul  5  2014 EULA
+-rw-r--r--. 1  500  502  18009 Jul  5  2014 GPL
+drwxr-xr-x. 3  500  502   2048 Jul  4  2014 images
+.....（下面省略）.....
+
+[root@study ~]# umount /data/centos_dvd/
+# 测试完成！记得将数据给他卸载！同时这个镜像文件也被鸟哥删除了...测试机容量不够大！
+```
+
+非常方便吧！如此一来我们不需要将这个文件烧录成为光盘或者是 DVD 就能够读取内部的数据了！ 换句话说，你也可以在这个文件内“动手脚”去修改文件的！这也是为什么很多镜像文件提供后，还得要提供验证码 （MD5） 给使用者确认该镜像文件没有问题！
+
+- 创建大文件以制作 loop 设备文件！
+
+想一想，既然能够挂载 DVD 的镜像文件，那么我能不能制作出一个大文件，然后将这个文件格式化后挂载呢？ 好问题！这是个有趣的动作！而且还能够帮助我们解决很多系统的分区不良的情况呢！举例来说，如果当初在分区时， 你只有分区出一个根目录，假设你已经没有多余的容量可以进行额外的分区的！偏偏根目录的容量还很大！ 此时你就能够制作出一个大文件，然后将这个文件挂载！如此一来感觉上你就多了一个分区啰！用途非常的广泛啦！
+
+下面我们在 /srv 下创建一个 512MB 左右的大文件，然后将这个大文件格式化并且实际挂载来玩一玩！ 这样你会比较清楚鸟哥在讲啥！
+
+- 创建大型文件
+
+首先，我们得先有一个大的文件吧！怎么创建这个大文件呢？在 Linux 下面我们有一支很好用的程序 [dd](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html#dd) ！他可以用来创建空的文件喔！详细的说明请先翻到下一章 [压缩指令的运用](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html) 来查阅，这里鸟哥仅作一个简单的范例而已。 假设我要创建一个空的文件在 /srv/loopdev ，那可以这样做：
+
+```
+[root@study ~]# dd if=/dev/zero of=/srv/loopdev bs=1M count=512
+512+0 records in   &lt;==读入 512 笔数据
+512+0 records out  &lt;==输出 512 笔数据
+536870912 Bytes （537 MB） copied, 12.3484 seconds, 43.5 MB/s
+# 这个指令的简单意义如下：
+# if    是 input file ，输入文件。那个 /dev/zero 是会一直输出 0 的设备！
+# of    是 output file ，将一堆零写入到后面接的文件中。
+# bs    是每个 block 大小，就像文件系统那样的 block 意义；
+# count 则是总共几个 bs 的意思。所以 bs*count 就是这个文件的容量了！
+
+[root@study ~]# ll -h /srv/loopdev
+-rw-r--r--. 1 root root 512M Jun 25 19:46 /srv/loopdev
+```
+
+dd 就好像在叠砖块一样，将 512 块，每块 1MB 的砖块堆叠成为一个大文件 （/srv/loopdev） ！ 最终就会出现一个 512MB 的文件！粉简单吧！
+
+- 大型文件的格式化
+
+默认 xfs 不能够格式化文件的，所以要格式化文件得要加入特别的参数才行喔！让我们来瞧瞧！
+
+```
+[root@study ~]# mkfs.xfs -f /srv/loopdev
+[root@study ~]# blkid /srv/loopdev
+/srv/loopdev: UUID="7dd97bd2-4446-48fd-9d23-a8b03ffdd5ee" TYPE="xfs"
+```
+
+其实很简单啦！所以鸟哥就不输出格式化的结果了！要注意 UUID 的数值，未来会用到！
+
+- 挂载
+
+那要如何挂载啊？利用 mount 的特殊参数，那个 -o loop 的参数来处理！
+
+```
+[root@study ~]# mount -o loop UUID="7dd97bd2-4446-48fd-9d23-a8b03ffdd5ee" /mnt
+[root@study ~]# df /mnt
+Filesystem     1K-blocks  Used Available Use% Mounted on
+/dev/loop0        520876 26372    494504   6% /mnt
+```
+
+通过这个简单的方法，感觉上你就可以在原本的分区在不更动原有的环境下制作出你想要的分区就是了！ 这东西很好用的！尤其是想要玩 Linux 上面的“虚拟机”的话， 也就是以一部 Linux 主机再切割成为数个独立的主机系统时，类似 VMware 这类的软件， 在 Linux 上使用 xen 这个软件，他就可以配合这种 loop device 的文件类型来进行根目录的挂载，真的非常有用的喔！ ^_^
+
+
+
+比较特别的是，CentOS 7.x 越来越聪明了，现在你不需要下达 -o loop 这个选项与参数，它同样可以被系统挂上来！ 连直接输入 blkid 都会列出这个文件内部的文件系统耶！相当有趣！不过，为了考虑向下兼容性，鸟哥还是建议你加上 loop 比较妥当喔！ 现在，请将这个文件系统永远的自动挂载起来吧！
+
+```
+[root@study ~]# nano /etc/fstab #条命令使用nano文本编辑器打开/etc/fstab文件。/etc/fstab文件是Linux系统用于存储文件系统挂载信息的配置文件。每当系统启动时，它会读取这个文件来挂载列出的文件系统。
+
+/srv/loopdev  /data/file  xfs  defaults**,loop**   0 0
+#在/etc/fstab文件中，你添加了一行：
+这行的意思是：
+/srv/loopdev：这是用于挂载的文件（或设备）的路径。在这个例子中，它看起来像是一个文件，通常用于通过losetup或mount -o loop命令创建的循环设备。
+/data/file：这是挂载点，即文件系统将被挂载到的目录。
+xfs：这是文件系统的类型。
+defaults,loop：这是挂载选项。defaults包含了一组标准的挂载选项（如rw, suid, dev, exec, auto, nouser, 和 async）。loop选项告诉mount命令这是一个循环设备。
+0 0：这两个数字分别表示dump备份和fsck检查（文件系统检查）的优先级。0表示不进行这些操作。
+
+# 毕竟系统大多仅查询 block device 去找出 UUID 而已，因此使用文件创建的 filesystem，
+# 最好还是使用原本的文件名来处理，应该比较不容易出现错误讯息的！
+
+[root@study ~]# umount /mnt #卸载/mnt目录（可能是之前的挂载点）
+[root@study ~]# mkdir /data/file #这个命令创建了一个名为/data/file的目录，用作XFS文件系统的挂载点。
+[root@study ~]# mount -a #mount -a命令会挂载/etc/fstab文件中列出的所有文件系统。由于你已经将/srv/loopdev配置为挂载到/data/file，这个命令会尝试将/srv/loopdev文件（假设它已经被设置为循环设备）挂载到/data/file目录。
+
+[root@study ~]# df /data/file #查看/data/file目录的挂载信息
+#df命令用于显示磁盘空间的使用情况。通过指定/data/file作为参数，它显示了该挂载点的文件系统信息，包括文件系统类型（XFS）、总大小、已用空间、可用空间以及挂载点。从输出中可以看出，/dev/loop0（这是/srv/loopdev文件被设置为循环设备后的设备名）已经被成功挂载到/data/file，并且文件系统正在使用中。
+
+Filesystem     1K-blocks  Used Available Use% Mounted on
+/dev/loop0        520876 26372    494504   6% /data/file
+```
+
+## 7.5 内存交换空间（swap）之创建
+
+以前的年代因为内存不足，因此那个可以暂时将内存的程序拿到硬盘中暂放的内存交换空间 （swap） 就显的非常的重要！ 否则，如果突然间某支程序用掉你大部分的内存，那你的系统恐怕有损毁的情况发生喔！所以，早期在安装 Linux 之前，大家常常会告诉你： 安装时一定需要的两个 partition ，一个是根目录，另外一个就是 swap（内存交换空间）。关于内存交换空间的解释在[第三章安装 Linux 内的磁盘分区](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html)时有约略提过，请你自行回头瞧瞧吧！
+
+一般来说，如果硬件的配备资源足够的话，那么 swap 应该不会被我们的系统所使用到， swap 会被利用到的时刻通常就是实体内存不足的情况了。
+
+从[第零章的计算机概论](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html)当中，**我们知道 CPU 所读取的数据都来自于内存， 那当内存不足的时候，为了让后续的程序可以顺利的运行，因此在内存中暂不使用的程序与数据就会被挪到 swap 中了。 此时内存就会空出来给需要执行的程序载入。由于 swap 是用磁盘来暂时放置内存中的信息，所以用到 swap 时，你的主机磁盘灯就会开始闪个不停啊！**
+
+虽然目前（2015）主机的内存都很大，至少都有 4GB 以上啰！因此在个人使用上，你不要设置 swap 在你的 Linux 应该也没有什么太大的问题。 不过服务器可就不这么想了～由于你不会知道何时会有大量来自网络的要求，因此最好还是能够预留一些 swap 来缓冲一下系统的内存用量！ 至少达到“备而不用”的地步啊！
+
+现在想像一个情况，你已经将系统创建起来了，此时却才发现你没有创建 swap ～那该如何是好呢？ 通过本章上面谈到的方法，你可以使用如下的方式来创建你的 swap 啰！
+
+- 设置一个 swap partition
+- 创建一个虚拟内存的文件
+
+不啰唆，就立刻来处理处理吧！
+
+### 7.5.1 使用实体分区创建swap
+
+创建 swap 分区的方式也是非常的简单的！通过下面几个步骤就搞定啰：
+
+1. 分区：先使用 gdisk 在你的磁盘中分区出一个分区给系统作为 swap 。由于 Linux 的 gdisk 默认会将分区的 ID 设置为 Linux 的文件系统，所以你可能还得要设置一下 system ID 就是了。
+2. 格式化：利用创建 swap 格式的“mkswap 设备文件名”就能够格式化该分区成为 swap 格式啰
+3. 使用：最后将该 swap 设备启动，方法为：“swapon 设备文件名”。
+4. 观察：最终通过 free 与 swapon -s 这个指令来观察一下内存的用量吧！
+
+不啰唆，立刻来实作看看！既然我们还有多余的磁盘容量可以分区，那么让我们继续分区出 512MB 的磁盘分区吧！ 然后将这个磁盘分区做成 swap 吧！
+
+- \1. 先进行分区的行为啰！
+
+```
+[root@study ~]# gdisk /dev/vda
+Command （? for help）: n
+Partition number （6-128, default 6）:
+First sector （34-83886046, default = 69220352） or {+-}size{KMGTP}:
+Last sector （69220352-83886046, default = 83886046） or {+-}size{KMGTP}: +512M
+Current type is 'Linux filesystem'
+Hex code or GUID （L to show codes, Enter = 8300）: 8200
+Changed type of partition to 'Linux swap'
+
+Command （? for help）: p
+Number  Start （sector）    End （sector）  Size       Code  Name
+   6        69220352        70268927   512.0 MiB   8200  Linux swap  # 重点就是产生这东西！
+
+Command （? for help）: w
+
+Do you want to proceed? （Y/N）: y
+
+[root@study ~]# partprobe
+[root@study ~]# lsblk
+NAME            MAJ:MIN RM  SIZE RO TYPE MOUNTPOINT
+vda             252:0    0   40G  0 disk
+.....（中间省略）.....
+`-vda6          252:6    0  512M  0 part   # 确定这里是存在的才行！
+# 鸟哥有简化输出喔！结果可以看到我们多了一个 /dev/vda6 可以使用于 swap 喔！
+```
+
+- \2. 开始创建 swap 格式
+
+```
+[root@study ~]# mkswap /dev/vda6
+Setting up swapspace version 1, size = 524284 KiB
+no label, UUID=6b17e4ab-9bf9-43d6-88a0-73ab47855f9d
+[root@study ~]# blkid /dev/vda6
+/dev/vda6: UUID="6b17e4ab-9bf9-43d6-88a0-73ab47855f9d" TYPE="swap"
+# 确定格式化成功！且使用 blkid 确实可以抓到这个设备了喔！
+```
+
+- \3. 开始观察与载入看看吧！
+
+```
+[root@study ~]# free
+              total        used        free      shared  buff/cache   available
+Mem:        1275140      227244      330124        7804      717772      875536  # 实体内存
+Swap:       1048572      101340      947232                                      # swap 相关
+# 我有 1275140K 的实体内存，使用 227244K 剩余 330124K ，使用掉的内存有
+# 717772K 用在缓冲/高速缓存的用途中。至于 swap 已经有 1048572K 啰！这样会看了吧？！
+
+[root@study ~]# swapon /dev/vda6
+[root@study ~]# free
+              total        used        free      shared  buff/cache   available
+Mem:        1275140      227940      329256        7804      717944      874752
+Swap:       1572856      101260     1471596   &lt;==有看到增加了没？
+
+[root@study ~]# swapon -s
+Filename                 Type            Size    Used    Priority
+/dev/dm-1                partition       1048572 101260  -1
+/dev/vda6                partition       524284  0       -2
+# 上面列出目前使用的 swap 设备有哪些的意思！
+
+[root@study ~]# nano /etc/fstab
+UUID="6b17e4ab-9bf9-43d6-88a0-73ab47855f9d"  swap  swap  defaults  0  0
+# 当然要写入配置文件，只不过不是文件系统，所以没有挂载点！第二个字段写入 swap 即可。
+```
+
+### 7.5.2 使用文件创建swap
+
+如果是在实体分区无法支持的环境下，此时前一小节提到的 loop 设备创建方法就派的上用场啦！ 与实体分区不一样的，这个方法只是利用 dd 去创建一个大文件而已。多说无益，我们就再通过文件创建的方法创建一个 128 MB 的内存交换空间吧！
+
+- 1. 使用 dd 这个指令来新增一个 128MB 的文件在 /tmp 下面：
+
+```
+[root@study ~]# dd if=/dev/zero of=/tmp/swap bs=1M count=128
+128+0 records in
+128+0 records out
+134217728 Bytes （134 MB） copied, 1.7066 seconds, 78.6 MB/s
+
+[root@study ~]# ll -h /tmp/swap
+-rw-r--r--. 1 root root 128M Jun 26 17:47 /tmp/swap
+```
+
+这样一个 128MB 的文件就创建妥当。若忘记上述的各项参数的意义，请回[前一小节](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html#dd)查阅一下啰！
+
+- \2. 使用 mkswap 将 /tmp/swap 这个文件格式化为 swap 的文件格式：
+
+```
+[root@study ~]# mkswap /tmp/swap
+Setting up swapspace version 1, size = 131068 KiB
+no label, UUID=4746c8ce-3f73-4f83-b883-33b12fa7337c
+# 这个指令下达时请“特别小心”，因为下错字符控制，将可能使您的文件系统挂掉！
+```
+
+- \3. 使用 swapon 来将 /tmp/swap 启动啰！
+
+```
+[root@study ~]# swapon /tmp/swap
+[root@study ~]# swapon -s
+Filename            Type            Size    Used    Priority
+/dev/dm-1           partition       1048572 100380  -1
+/dev/vda6           partition       524284  0       -2
+/tmp/swap           file            131068  0       -3
+```
+
+- \4. 使用 swapoff 关掉 swap file，并设置自动启用
+
+```
+[root@study ~]# nano /etc/fstab
+/tmp/swap  swap  swap  defaults  0  0
+# 为何这里不要使用 UUID 呢？这是因为系统仅会查询区块设备 （block device） 不会查询文件！
+# 所以，这里千万不要使用 UUID，不然系统会查不到喔！
+
+[root@study ~]# swapoff /tmp/swap /dev/vda6
+[root@study ~]# swapon -s
+Filename                                Type            Size    Used    Priority
+/dev/dm-1                               partition       1048572 100380  -1
+# 确定已经回复到原本的状态了！然后准备来测试！！
+
+[root@study ~]# swapon -a
+[root@study ~]# swapon -s
+# 最终你又会看正确的三个 swap 出现啰！这也才确定你的 /etc/fstab 设置无误！
+```
+
+说实话，swap 在目前的桌面电脑来讲，存在的意义已经不大了！这是因为目前的 x86 主机所含的内存实在都太大了 （一般入门级至少也都有 4GB 了），所以，我们的 Linux 系统大概都用不到 swap 这个玩意儿的。不过， 如果是针对服务器或者是工作站这些常年上线的系统来说的话，那么，无论如何，swap 还是需要创建的。
+
+因为 swap 主要的功能是当实体内存不够时，则某些在内存当中所占的程序会暂时被移动到 swap 当中，让实体内存可以被需要的程序来使用。另外，如果你的主机支持电源管理模式， 也就是说，你的 Linux 主机系统可以进入“休眠”模式的话，那么， 运行当中的程序状态则会被纪录到 swap 去，以作为“唤醒”主机的状态依据！ 另外，有某些程序在运行时，本来就会利用 swap 的特性来存放一些数据段， 所以， swap 来是需要创建的！只是不需要太大！
+
+## 7.6 文件系统的特殊观察与操作
+
+文件系统实在是非常有趣的东西，鸟哥学了好几年还是很多东西不很懂呢！在学习的过程中很多朋友在讨论区都有提供一些想法！ 这些想法将他归纳起来有下面几点可以参考的数据呢！
+
+### 7.6.1 磁盘空间之浪费问题
+
+在前面的 EXT2 [data block](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html#harddisk-inode) 介绍中谈到了一个 block 只能放置一个文件， 因此太多小文件将会浪费非常多的磁盘容量。但你有没有注意到，整个文件系统中包括 superblock, inode table 与其他中介数据等其实都会浪费磁盘容量喔！所以当我们在 /dev/vda4, /dev/vda5 创建起 xfs/ext4 文件系统时， 一挂载就立刻有很多容量被用掉了！
+
+另外，不知道你有没有发现到，当你使用 ls -l 去查询某个目录下的数据时，第一行都会出现一个“total”的字样！ 那是啥东西？其实那就是该目录下的所有数据所耗用的实际 block 数量 * block 大小的值。 我们可以通过 ll -s 来观察看看上述的意义：
+
+```
+[root@study ~]# ll -sh
+total 12K
+4.0K -rw-------. 1 root root 1.8K May  4 17:57 anaconda-ks.cfg
+4.0K -rw-r--r--. 2 root root  451 Jun 10  2014 crontab
+ 0 lrwxrwxrwx. 1 root root   12 Jun 23 22:31 crontab2 -&gt; /etc/crontab
+4.0K -rw-r--r--. 1 root root 1.9K May  4 18:01 initial-setup-ks.cfg
+ 0 -rw-r--r--. 1 root root    0 Jun 16 01:11 test1
+ 0 drwxr-xr-x. 2 root root    6 Jun 16 01:11 test2
+ 0 -rw-rw-r--. 1 root root    0 Jun 16 01:12 test3
+ 0 drwxrwxr-x. 2 root root    6 Jun 16 01:12 test4
+```
+
+从上面的特殊字体部分，那就是每个文件所使用掉 block 的容量！举**例来说，那个 crontab 虽然仅有 451Bytes ， 不过他却占用了整个 block （每个 block 为 4K），所以将所有的文件的所有的 block 加总就得到 12KBytes 那个数值了**。 如果计算每个文件实际容量的加总结果，其实只有不到 5K 而已～所以啰，这样就**耗费掉好多容量**了！未来大家在讨论小磁盘、 大磁盘，文件大小的损耗时，要回想到这个区块喔！ ^_^
+
+
+
+### 7.6.2 利用 GNU 的 parted 进行分区行为（Optional）
+
+虽然你可以使用 gdisk/fdisk 很快速的将你的分区切割妥当，不过 gdisk 主要针对 GPT 而 fdisk 主要支持 MBR ，对 GPT 的支持还不够！ 所以使用不同的分区时，得要先查询到正确的分区表才能用适合的指令，好麻烦！有没有同时支持的指令呢？有的！那就是 parted 啰！
+
+![鸟哥的图示](image/vbird_face-17218780310401.gif)
+
+**Tips** 老实说，若不是后来有推出支持 GPT 的 gdisk，鸟哥其实已经爱用 parted 来进行分区行为了！虽然很多指令都需要同时开一个终端机去查 man page， 不过至少所有的分区表都能够支持哩！ ^_^
+
+
+
+parted 可以直接在一行命令行就完成分区，是一个非常好用的指令！它常用的语法如下：
+
+```
+[root@study ~]# parted [设备] [指令 [参数]]
+选项与参数：
+指令功能：
+          新增分区：mkpart [primary&#124;logical&#124;extended] [ext4&#124;vfat&#124;xfs] 开始 结束
+          显示分区：print
+          删除分区：rm [partition]
+
+范例一：以 parted 列出目前本机的分区表数据
+[root@study ~]# parted /dev/vda print
+Model: Virtio Block Device （virtblk）         &lt;==磁盘接口与型号
+Disk /dev/vda: 42.9GB                        &lt;==磁盘文件名与容量
+Sector size （logical/physical）: 512B/512B    &lt;==每个扇区的大小
+Partition Table: gpt                         &lt;==是 GPT 还是 MBR 分区
+Disk Flags: pmbr_boot
+
+Number  Start   End     Size    File system     Name                  Flags
+ 1      1049kB  3146kB  2097kB                                        bios_grub
+ 2      3146kB  1077MB  1074MB  xfs
+ 3      1077MB  33.3GB  32.2GB                                        lvm
+ 4      33.3GB  34.4GB  1074MB  xfs             Linux filesystem
+ 5      34.4GB  35.4GB  1074MB  ext4            Microsoft basic data
+ 6      35.4GB  36.0GB  537MB   linux-swap（v1）  Linux swap
+[  1 ]  [  2 ]  [  3  ] [  4  ] [  5  ]         [  6  ]
+```
+
+上面是最简单的 parted 指令功能简介，你可以使用“ man parted ”，或者是“ parted /dev/vda help mkpart ”去查询更详细的数据。比较有趣的地方在于分区表的输出。我们将上述的分区表示意拆成六部分来说明：
+
+1. Number：这个就是分区的号码啦！举例来说，1号代表的是 /dev/vda1 的意思；
+2. Start：分区的起始位置在这颗磁盘的多少 MB 处？有趣吧！他以容量作为单位喔！
+3. End：此分区的结束位置在这颗磁盘的多少 MB 处？
+4. Size：由上述两者的分析，得到这个分区有多少容量；
+5. File system：分析可能的文件系统类型为何的意思！
+6. Name：就如同 gdisk 的 System ID 之意。
+
+不过 start 与 end 的单位竟然不一致！好烦～如果你想要固定单位，例如都用 MB 显示的话，可以这样做：
+
+```
+[root@study ~]# parted /dev/vda unit mb print
+```
+
+如果你想要将原本的 MBR 改成 GPT 分区表，或原本的 GPT 分区表改成 MBR 分区表，也能使用 parted ！ 但是请不要使用 vda 来测试！因为分区表格式不能转换！因此进行下面的测试后，在该磁盘的系统应该是会损毁的！ 所以鸟哥拿一颗没有使用的U盘来测试，所以文件名会变成 /dev/sda 喔！再讲一次！不要恶搞喔！
+
+```
+范例二：将 /dev/sda 这个原本的 MBR 分区表变成 GPT 分区表！（危险！危险！勿乱搞！无法复原！）
+[root@study ~]# parted /dev/sda print
+Model: ATA QEMU HARDDISK （scsi）
+Disk /dev/sda: 2148MB
+Sector size （logical/physical）: 512B/512B
+Partition Table: msdos    # 确实显示的是 MBR 的 msdos 格式喔！
+
+[root@study ~]# parted /dev/sda mklabel gpt
+Warning: The existing disk label on /dev/sda will be destroyed and all data on 
+this disk will be lost. Do you want to continue?
+Yes/No? y
+
+[root@study ~]# parted /dev/sda print
+# 你应该就会看到变成 gpt 的模样！只是...后续的分区就全部都死掉了！
+```
+
+接下来我们尝试来创建一个全新的分区吧！再次的创建一个 512MB 的分区来格式化为 vfat，且挂载于 /data/win 喔！
+
+```
+范例三：创建一个约为 512MB 容量的分区
+[root@study ~]# parted /dev/vda print
+.....（前面省略）.....
+Number  Start   End     Size    File system     Name                  Flags
+.....（中间省略）.....
+ 6      35.4GB  36.0GB  537MB   linux-swap（v1）  Linux swap  # 要先找出来下一个分区的起始点！
+
+[root@study ~]# parted /dev/vda mkpart primary fat32 36.0GB 36.5GB
+# 由于新的分区的起始点在前一个分区的后面，所以当然要先找出前面那个分区的 End 位置！
+# 然后再请参考 mkpart 的指令功能，就能够处理好相关的动作！
+[root@study ~]# parted /dev/vda print
+.....（前面省略）.....
+Number  Start   End     Size    File system     Name                  Flags
+ 7      36.0GB  36.5GB  522MB                   primary
+
+[root@study ~]# partprobe
+[root@study ~]# lsblk /dev/vda7
+NAME MAJ:MIN RM  SIZE RO TYPE MOUNTPOINT
+vda7 252:7    0  498M  0 part      # 要确定它是真的存在才行！
+
+[root@study ~]# mkfs -t vfat /dev/vda7
+[root@study ~]# blkid /dev/vda7
+/dev/vda7: SEC_TYPE="msdos" UUID="6032-BF38" TYPE="vfat"
+
+[root@study ~]# nano /etc/fstab
+UUID="6032-BF38"  /data/win  vfat  defaults   0  0
+
+[root@study ~]# mkdir /data/win
+[root@study ~]# mount -a
+[root@study ~]# df /data/win
+Filesystem     1K-blocks  Used Available Use% Mounted on
+/dev/vda7         509672     0    509672   0% /data/win
+```
+
+事实上，你应该使用 gdisk 来处理 GPT 分区就好了！不过，某些特殊时刻，例如你要自己写一只脚本，让你的分区全部一口气创建， 不需要 gdisk 一条一条指令去进行时，那么 parted 就非常有效果了！因为他可以直接进行 partition 而不需要跟用户互动！这就是它的最大好处！ 鸟哥还是建议，至少你要操作过几次 parted ，知道这家伙的用途！未来有需要再回来查！或使用 man parted 去处理喔！
+
+## 7.7 重点回顾
+
+- 一个可以被挂载的数据通常称为“文件系统, filesystem”而不是分区 （partition） 喔！
+- 基本上 Linux 的传统文件系统为 Ext2 ，该文件系统内的信息主要有：
+  - superblock：记录此 filesystem 的整体信息，包括inode/block的总量、使用量、剩余量， 以及文件系统的格式与相关信息等；
+  - inode：记录文件的属性，一个文件占用一个inode，同时记录此文件的数据所在的 block 号码；
+  - block：实际记录文件的内容，若文件太大时，会占用多个 block 。
+- Ext2 文件系统的数据存取为索引式文件系统（indexed allocation）
+- 需要磁盘重组的原因就是文件写入的 block 太过于离散了，此时文件读取的性能将会变的很差所致。 这个时候可以通过磁盘重组将同一个文件所属的 blocks 汇整在一起。
+- Ext2文件系统主要有：boot sector, superblock, inode bitmap, block bitmap, inode table, data block 等六大部分。
+- data block 是用来放置文件内容数据地方，在 Ext2 文件系统中所支持的 block 大小有 1K, 2K 及 4K 三种而已
+- inode 记录文件的属性/权限等数据，其他重要项目为： 每个 inode 大小均为固定，有 128/256Bytes 两种基本容量。每个文件都仅会占用一个 inode 而已； 因此文件系统能够创建的文件数量与 inode 的数量有关；
+- 文件的 block 在记录文件的实际数据，目录的 block 则在记录该目录下面文件名与其 inode 号码的对照表；
+- 日志式文件系统 （journal） 会多出一块记录区，随时记载文件系统的主要活动，可加快系统复原时间；
+- Linux 文件系统为增加性能，会让内存作为大量的磁盘高速缓存；
+- 实体链接只是多了一个文件名对该 inode 号码的链接而已；
+- 符号链接就类似Windows的捷径功能。
+- 磁盘的使用必需要经过：分区、格式化与挂载，分别惯用的指令为：gdisk, mkfs, mount三个指令
+- 分区时，应使用 parted 检查分区表格式，再判断使用 fdisk/gdisk 来分区，或直接使用 parted 分区
+- 为了考虑性能，XFS 文件系统格式化时，可以考虑加上 agcount/su/sw/extsize 等参数较佳
+- 如果磁盘已无未分区的容量，可以考虑使用大型文件取代磁盘设备的处理方式，通过 dd 与格式化功能。
+- 开机自动挂载可参考/etc/fstab之设置，设置完毕务必使用 mount -a 测试语法正确否；
