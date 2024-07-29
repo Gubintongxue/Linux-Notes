@@ -483,7 +483,7 @@ tar: /etc/yum.repos.d/CentOS-fasttrack.repo: file is unchanged; not dumped
 [root@study ~]# tar -jtv -f /root/etc.newer.tar.bz2 | grep -v '/$'
 ```
 
-原文：
+**原文：**
 
 - 将备份的数据解压缩，并考虑特定目录的解压缩动作 （-C 选项的应用）
 
@@ -735,7 +735,7 @@ xfsdump 的功能强大，可以进行完整备份（full backup）和累积备�
 [root@study ~]# ll /var/lib/xfsdump/inventory
 ```
 
-原文：
+**原文：**
 
 现在就让我们来做几个范例吧！假设你跟鸟哥一样有将 /boot 分区出自己的文件系统，要整个文件系统备份可以这样作：
 
@@ -813,7 +813,7 @@ xfsdump: Dump Status: SUCCESS
 [root@study ~]# xfsdump -I
 ```
 
-原文：
+**原文：**
 
 你一定得要进行过完整备份后 （-l 0） 才能够继续有其他累积备份 （-l 1~9） 的能耐！所以，请确定上面的实做已经完成！ 接下来让我们来搞一搞累积备份功能吧！
 
@@ -925,7 +925,7 @@ xfsrestore 用于还原由 xfsdump 备份的数据。
 [root@study ~]# xfsrestore -I
 ```
 
-原文：
+
 
 -  xfsrestore 观察 xfsdump 后的备份数据内容
 
@@ -986,7 +986,7 @@ xfsrestore: Restore Status: SUCCESS
 [root@study ~]# diff -r /boot /tmp/boot
 ```
 
-原文：
+**原文：**
 
 先来处理一个简单的任务，就是将 /boot 整个复原到最原本的状态～你该如何处理？其实很简单，我们只要知道想要被复原的那个文件， 以及该文件的 session label name，就可以复原啦！我们从上面的观察已经知道 level 0 的 session label 是“boot_all”啰！那整个流程是这样：
 
@@ -1286,7 +1286,7 @@ Filesystem      Size  Used Avail Use% Mounted on
 
 
 
-原文：
+**原文：**
 
 例题：你想要将你的 /dev/vda2 进行完整的复制到另一个 partition 上，请使用你的系统上面未分区完毕的容量再创建一个与 /dev/vda2 差不多大小的分区 （只能比 /dev/vda2 大，不能比他小！），然后将之进行完整的复制 （包括需要复制 boot sector 的区块）。答：因为我们的 /dev/sda 也是个测试的 USB 磁盘，可以随意恶搞！我们刚刚也才测试过将光盘镜像文件给它复制进去而已。 现在，请你分区 /dev/sda1 出来，然后将 /dev/vda2 完整的拷贝进去 /dev/sda1 吧！
 
@@ -1371,7 +1371,7 @@ cpio 是一个功能强大的备份工具，可以备份包括设备文件在内
 - `-v`：显示过程中的文件名称
 - `-c`：使用新的 portable format 储存
 
-原文：
+**原文：**
 
 这个指令挺有趣的，因为 cpio 可以备份任何东西，包括设备设备文件。不过 cpio 有个大问题， 那就是 cpio 不会主动的去找文件来备份！啊！那怎办？所以啰，一般来说， cpio 得要配合类似 [find](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html#find) 等可以找到文件名的指令来告知 cpio 该被备份的数据在哪里啊！ 有点小麻烦啦～因为牵涉到我们在第三篇才会谈到的[数据流重导向](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html#redirect)说～ 所以这里你就先背一下语法，等到第三篇讲完你就知道如何使用 cpio 啰！
 
