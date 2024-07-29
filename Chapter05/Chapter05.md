@@ -37,6 +37,18 @@ Linux系统中的每个文件都有一个拥有者，这个拥有者可以是任
 
 在Linux系统中，root用户被称为“万能的天神”，拥有所有文件和目录的访问权限。
 
+**原文：**
+
+因此，我们就可以知道啦，在Linux里面，任何一个文件都具有“User, Group及Others”三种身份的个别权限， 我们可以将上面的说明以下面的图示来解释：
+
+![每个文件的拥有者、群组与 others 的示意图](image/0210filepermission_1.jpg)图5.1.1、每个文件的拥有者、群组与 others 的示意图我们以王三毛为例，王三毛这个“文件”的拥有者为王三毛，他属于王大毛这个群组， 而张小猪相对于王三毛，则只是一个“其他人（others）”而已。
+
+不过，这里有个特殊的人物要来介绍的，那就是“万能的天神”！这个天神具有无限的神力， 所以他可以到达任何他想要去的地方，呵呵！那个人在Linux系统中的身份代号是“ root ”啦！所以要小心喔！那个root可是“万能的天神”喔！
+
+无论如何，“使用者身份”，与该使用者所支持的“群组”概念，在Linux的世界里面是相当的重要的， 他可以帮助你让你的多任务Linux环境变的更容易管理！更详细的 “身份与群组” 设置，我们将在[第十三章、帐号管理](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html)再进行解说。 下面我们将针对文件系统与文件权限来进行说明。
+
+
+
 #### 使用者身份与群组的重要性
 
 使用者身份和群组在Linux系统中非常重要，它们帮助你管理多任务环境，并保护个人和团队的文件。更多关于身份和群组的设置将在第十三章介绍。
@@ -51,9 +63,15 @@ Linux系统中的每个文件都有一个拥有者，这个拥有者可以是任
 
 这些文件是系统账号、密码和群组信息的集中地，不能随意删除。在第十三章中将详细介绍这些文件的格式和更多设置。
 
-#### 总结
+**原文：**
 
-理解使用者和群组的概念对于有效管理Linux系统至关重要。通过适当设置文件的权限，你可以确保个人隐私和团队协作的安全性。Linux系统提供了强大的工具和灵活的权限设置来帮助你实现这些目标。
+- Linux 使用者身份与群组记录的文件
+
+在我们Linux系统当中，默认的情况下，所有的系统上的帐号与一般身份使用者，还有那个root的相关信息， 都是记录在/etc/passwd这个文件内的。至于个人的密码则是记录在/etc/shadow这个文件下。 此外，Linux所有的群组名称都纪录在/etc/group内！这三个文件可以说是Linux系统里面帐号、密码、群组信息的集中地啰！ 不要随便删除这三个文件啊！ ^_^
+
+至于更多的与帐号群组有关的设置，还有这三个文件的格式，不要急，我们在[第十三章的帐号管理](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html)时，会再跟大家详细的介绍的！这里先有概念即可。
+
+
 
 ### 5.2 Linux 文件权限概念
 
@@ -64,7 +82,7 @@ Linux系统中的每个文件都有一个拥有者，这个拥有者可以是任
 要了解文件属性，首先要熟悉`ls`指令，这是查看文件信息的重要命令。使用`ls -al`可以显示文件的详细权限和属性，包括隐藏文件。以下是一个示例输出及各字段的解释：
 
 ```
-shell复制代码[dmtsai@study ~]$ su -
+[dmtsai@study ~]$ su -
 Password:
 [root@study ~]# ls -al
 total 48
@@ -110,8 +128,10 @@ drwx------.  3    root     root      24  May  4 17:59 .dbus
 
 使用`chgrp`命令改变文件或目录的群组：
 
+**要改成哪个群组的名字是放在前面**
+
 ```
-shell复制代码[root@study ~]# chgrp users initial-setup-ks.cfg
+[root@study ~]# chgrp users initial-setup-ks.cfg
 [root@study ~]# ls -l
 -rw-r--r--. 1 root users 1864 May  4 18:01 initial-setup-ks.cfg
 ```
@@ -121,7 +141,7 @@ shell复制代码[root@study ~]# chgrp users initial-setup-ks.cfg
 使用`chown`命令改变文件或目录的拥有者，可以同时改变群组：
 
 ```
-shell复制代码[root@study ~]# chown bin initial-setup-ks.cfg
+[root@study ~]# chown bin initial-setup-ks.cfg
 [root@study ~]# ls -l
 -rw-r--r--. 1 bin users 1864 May  4 18:01 initial-setup-ks.cfg
 
@@ -145,7 +165,7 @@ shell复制代码[root@study ~]# chown bin initial-setup-ks.cfg
 每种身份（所有者、群组、其他人）的权限数值是累加的，例如`-rwxrwx---`对应的数字是770：
 
 ```
-shell复制代码[root@study ~]# chmod 777 .bashrc
+[root@study ~]# chmod 777 .bashrc
 [root@study ~]# ls -al .bashrc
 -rwxrwxrwx. 1 root root 176 Dec 29  2013 .bashrc
 ```
@@ -155,7 +175,7 @@ shell复制代码[root@study ~]# chmod 777 .bashrc
 使用符号`u`（用户）、`g`（群组）、`o`（其他人）、`a`（所有）与`+`（增加）、`-`（删除）、`=`（设置）来改变权限：
 
 ```
-shell复制代码[root@study ~]# chmod u=rwx,go=rx .bashrc
+[root@study ~]# chmod u=rwx,go=rx .bashrc
 [root@study ~]# ls -al .bashrc
 -rwxr-xr-x. 1 root root 176 Dec 29  2013 .bashrc
 ```
@@ -177,18 +197,14 @@ shell复制代码[root@study ~]# chmod u=rwx,go=rx .bashrc
 例题分析：
 
 ```
-shell
-复制代码
 drwxr--r--  3  root  root  4096   Jun 25 08:35   .ssh
 ```
 
 假设用户`vbird`不属于`root`群组：
 
-- `vbird`只能读取目录内容，但无法进入目录，因为没有`x`权限。
+- **`vbird`只能读取目录内容，但无法进入目录，因为没有`x`权限。**
 
 ```
-shell
-复制代码
 drwxr-xr--   1 test1    testgroup    5238 Jun 19 10:25 groups/
 ```
 
@@ -208,13 +224,11 @@ Linux文件类型：
 
 - **链接文件（l）**: 类似Windows的快捷方式
 
-- 设备文件
-
-  :
+- 设备文件:
 
   - **块设备文件（b）**: 如硬盘
   - **字符设备文件（c）**: 如键盘、鼠标
-
+  
 - **套接字文件（s）**: 用于网络数据传输
 
 - **FIFO文件（p）**: 解决多个程序同时存取问题
@@ -301,7 +315,7 @@ FHS主要定义了以下三个层次的目录结构：
 以下是根目录下的常见目录及其内容：
 
 ```
-shell复制代码[dmtsai@study ~]$ ls -l /
+[dmtsai@study ~]$ ls -l /
 lrwxrwxrwx.   1 root root    7 May  4 17:51 bin -> usr/bin
 dr-xr-xr-x.   4 root root 4096 May  4 17:59 boot
 drwxr-xr-x.  20 root root 3260 Jun  2 19:27 dev
@@ -342,16 +356,12 @@ drwxr-xr-x.  22 root root 4096 Jun  2 19:27 var
 可以使用 `uname` 和 `lsb_release` 命令检查Linux核心和操作系统的版本。安装 `lsb_release` 需要网络连接，可以通过以下命令安装：
 
 ```
-shell
-复制代码
 [root@study ~]# yum install redhat-lsb
 ```
 
 安装后使用以下命令查看LSB版本：
 
 ```
-shell
-复制代码
 [root@study ~]# lsb_release -a
 ```
 
@@ -359,13 +369,13 @@ shell
 
 ## 5.4 重点回顾
 
-- Linux的每个文件中，可分别给予使用者、群组与其他人三种身份个别的 rwx 权限；
+- Linux的每个文件中，**可分别给予使用者、群组与其他人三种身份个别的 rwx 权限**；
 - 群组最有用的功能之一，就是当你在团队开发资源的时候，且每个帐号都可以有多个群组的支持；
 - 利用ls -l显示的文件属性中，第一个字段是文件的权限，共有十个位，第一个位是文件类型， 接下来三个为一组共三组，为使用者、群组、其他人的权限，权限有r,w,x三种；
-- 如果文件名之前多一个“ . ”，则代表这个文件为“隐藏文件”；
-- 若需要root的权限时，可以使用 su - 这个指令来切换身份。处理完毕则使用 exit 离开 su 的指令环境。
+- **如果文件名之前多一个“ . ”，则代表这个文件为“隐藏文件”**；
+- **若需要root的权限时，可以使用 su - 这个指令来切换身份。处理完毕则使用 exit 离开 su 的指令环境。**
 - 更改文件的群组支持可用chgrp，修改文件的拥有者可用chown，修改文件的权限可用chmod
-- chmod修改权限的方法有两种，分别是符号法与数字法，数字法中r,w,x分数为4,2,1；
+- **chmod修改权限的方法有两种，分别是符号法与数字法，数字法中r,w,x分数为4,2,1**；
 - 对文件来讲，权限的性能为：
   - r：可读取此一文件的实际内容，如读取文本文件的文字内容等；
   - w：可以编辑、新增或者是修改该文件的内容（但不含删除该文件）；
@@ -374,10 +384,10 @@ shell
   - r （read contents in directory）
   - w （modify contents of directory）
   - x （access directory）
-- 要开放目录给任何人浏览时，应该至少也要给予r及x的权限，但w权限不可随便给；
-- 能否读取到某个文件内容，跟该文件所在的目录权限也有关系 （目录至少需要有 x 的权限）。
-- Linux文件名的限制为：单一文件或目录的最大容许文件名为 255 个英文字符或 128 个中文字符；
+- **要开放目录给任何人浏览时，应该至少也要给予r及x的权限，但w权限不可随便给**；
+- 能否读取到某个文件内容，跟该文件所在的目录权限也有关系 （**目录至少需要有 x 的权限**）。
+- Linux文件名的限制为：**单一文件或目录的最大容许文件名为 255 个英文字符或 128 个中文字符**；
 - 根据FHS的官方文件指出， 他们的主要目的是希望让使用者可以了解到已安装软件通常放置于那个目录下
-- FHS订定出来的四种目录特色为：shareable, unshareable, static, variable等四类；
+- **FHS订定出来的四种目录特色为：shareable, unshareable, static, variable等四类**；
 - FHS所定义的三层主目录为：/, /var, /usr三层而已；
-- 绝对路径文件名为从根目录 / 开始写起，否则都是相对路径的文件名。
+- **绝对路径文件名为从根目录 / 开始写起，否则都是相对路径的文件名**。
