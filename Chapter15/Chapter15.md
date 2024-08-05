@@ -23,7 +23,7 @@ Linux下有两种工作调度方式：
 
 #### crontab
 
-`crontab`用于设置循环执行的任务，时间周期可以是分钟、小时、每天、每周、每月或每年。`crontab`可以通过指令执行，也可以编辑`/etc/crontab`来支持。`crond`服务支持`crontab`的生效。
+==`crontab`用于设置循环执行的任务，时间周期可以是分钟、小时、每天、每周、每月或每年。`crontab`可以通过指令执行，也可以编辑`/etc/crontab`来支持。`crond`服务支持`crontab`的生效。==
 
 #### 原文：
 
@@ -79,7 +79,7 @@ RPM软件管理机制会记录系统中软件的文件名变化。系统会定�
 
 了解这些例行性工作的处理方式，可以更好地管理和维护Linux系统，确保系统的稳定运行。
 
-#### 原文：
+#### ==原文：==
 
 如果你曾经使用过 Linux 一阵子了，那么你大概会发现到 Linux 会主动的帮我们进行一些工作呢！ 比方说自动的进行线上更新 （on-line update）、自动的进行 updatedb （[第六章谈到的 locate 指令](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html#locate)） 更新文件名数据库、自动的作登录文件分析 （所以 root 常常会收到标题为 logwatch 的信件） 等等。这是由于系统要正常运行的话， 某些在背景下面的工作必须要定时进行的缘故。基本上 Linux 系统常见的例行性任务有：
 
@@ -165,7 +165,7 @@ Jul 30 19:21:21 study.centos.vbird systemd[1]: Started Job spooling tools.
 使用`at`指令可以简单地进行单一工作调度。基本语法如下：
 
 ```
-bash复制代码[root@study ~]# at [-mldv] TIME
+[root@study ~]# at [-mldv] TIME
 [root@study ~]# at -c 工作号码
 ```
 
