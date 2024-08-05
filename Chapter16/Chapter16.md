@@ -1,7 +1,5 @@
 # 第十六章、程序管理与 SELinux 初探
 
-最近更新日期：20//
-
 一个程序被载入到内存当中运行，那么在内存内的那个数据就被称为程序（process）。程序是操作系统上非常重要的概念， 所有系统上面跑的数据都会以程序的型态存在。那么系统的程序有哪些状态？不同的状态会如何影响系统的运行？ 程序之间是否可以互相控管等等的，这些都是我们所必须要知道的项目。 另外与程序有关的还有 SELinux 这个加强文件存取安全性的咚咚，也必须要做个了解呢！
 
 ## 16.1 什么是程序（Process）
@@ -23,7 +21,7 @@
 
 ![程序与程序之间的差异](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/content/img/program_process.gif)
 
-**原文：**
+#### **原文：**
 
 我们如何产生一个程序呢？其实很简单啦，就是“执行一个程序或指令”就可以触发一个事件而取得一个 PID 啰！我们说过，系统应该是仅认识 binary file 的，那么当我们要让系统工作的时候，当然就是需要启动一个 binary file 啰，那个 binary file 就是程序 （program） 啦！
 
@@ -69,7 +67,7 @@ F S   UID   PID  PPID  C PRI  NI ADDR SZ WCHAN  TTY          TIME CMD
 在Linux中，进程之间是有相关性的。比如，当我们在一个`bash`环境中执行一个新的指令，这个指令会生成一个子进程，原来的`bash`进程则是父进程。通过`ps -l`可以查看进程间的关系。
 
 ```
-bash复制代码F S   UID   PID  PPID  C PRI  NI ADDR SZ WCHAN  TTY          TIME CMD
+F S   UID   PID  PPID  C PRI  NI ADDR SZ WCHAN  TTY          TIME CMD
 0 S  1000 13928 13927  0  80   0 - 29038 wait   pts/0    00:00:00 bash
 0 S  1000 13970 13928  1  80   0 - 29033 wait   pts/0    00:00:00 bash
 0 R  1000 14000 13970  0  80   0 - 30319 -      pts/0    00:00:00 ps
@@ -87,7 +85,7 @@ bash复制代码F S   UID   PID  PPID  C PRI  NI ADDR SZ WCHAN  TTY          TIM
 
 
 
-**原文**：
+#### **原文**：
 
 其实子程序与父程序之间的关系还挺复杂的，最大的复杂点在于程序互相之间的调用。在 Linux 的程序调用通常称为 fork-and-exec 的流程 [[1\]](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/content/139.html#ps1)！程序都会借由父程序以复制 （fork） 的方式产生一个一模一样的子程序， 然后被复制出来的子程序再以 exec 的方式来执行实际要进行的程序，最终就成为一个子程序的存在。 整个流程有点像下面这张图：
 
@@ -125,8 +123,6 @@ Linux默认提供了六个文本界面终端和一个图形界面终端，可以
 Linux允许在一个Shell中同时运行多个程序，可以使用`&`符号将程序放置在后台运行。例如：
 
 ```
-bash
-复制代码
 [root@study ~]# cp file1 file2 &
 ```
 
@@ -136,6 +132,54 @@ bash
 
 总之，Linux的多用户、多任务特性使其在多种应用场景下具有高效和灵活的处理能力，能够满足不同用户的需求。
 
+#### 原文：
+
+我们现在知道了，其实在 Linux 下面执行一个指令时，系统会将相关的权限、属性、程序码与数据等均载入内存， 并给予这个单元一个程序识别码 （PID），最终该指令可以进行的任务则与这个 PID 的权限有关。根据这个说明，我们就可以简单的了解，为什么 Linux 这么多用户，但是却每个人都可以拥有自己的环境了吧！^_^ ！下面我们来谈谈 Linux 多用户多任务环境的特色：
+
+- 多人环境：
+
+Linux 最棒的地方就在于他的多用户多任务环境了！那么什么是“多用户多任务”？在 Linux 系统上面具有多种不同的帐号， 每种帐号都有都有其特殊的权限，只有一个人具有至高无上的权力，那就是 root （系统管理员）。除了 root 之外，其他人都必须要受一些限制的！而每个人进入 Linux 的环境设置都可以随着每个人的喜好来设置 （还记得我们在[第十章 BASH](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html) 提过的 ~/.bashrc 吧？对了！就是那个光！）！现在知道为什么了吧？因为每个人登陆后取得的 shell 的 PID 不同嘛！
+
+- 多任务行为：
+
+我们在[第零章](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html)谈到 CPU 的速度，目前的 CPU 速度可高达几个 GHz。 这代表 CPU 每秒钟可以运行 109 这么多次指令。我们的 Linux 可以让 CPU 在各个工作间进行切换， 也就是说，其实每个工作都仅占去 CPU 的几个指令次数，所以 CPU 每秒就能够在各个程序之间进行切换啦！ 谁叫 CPU 可以在一秒钟进行这么多次的指令运行。
+
+CPU 切换程序的工作，与这些工作进入到 CPU 运行的调度 （CPU 调度，非 crontab 调度） 会影响到系统的整体性能！ 目前 Linux 使用的多任务切换行为是非常棒的一个机制，几乎可以将 PC 的性能整个压榨出来！ 由于性能非常好，因此当多人同时登陆系统时，其实会感受到整部主机好像就为了你存在一般！ 这就是多用户多任务的环境啦！[[2\]](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/content/139.html#ps2)
+
+- 多重登陆环境的七个基本终端窗口：
+
+在 Linux 当中，默认提供了六个文字界面登陆窗口，以及一个图形界面，你可以使用 [Alt]+[F1].....[F7] 来切换不同的终端机界面，而且每个终端机界面的登陆者还可以不同人！ 很炫吧！这个东西可就很有用啦！尤其是在某个程序死掉的时候！
+
+其实，这也是多任务环境下所产生的一个情况啦！我们的 Linux 默认会启动六个终端机登陆环境的程序，所以我们就会有六个终端机接口。 您也可以减少啊！就是减少启动的终端机程序就好了。 未来我们在[开机管理流程 （第十九章）](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html) 会再仔细的介绍的！
+
+- 特殊的程序管理行为：
+
+以前的鸟哥笨笨的，总是以为使用 Windows 98 就可以啦！后来，因为工作的关系，需要使用 Unix 系统，想说我只要在工作机前面就好，才不要跑来跑去的到 Unix 工作站前面去呢！所以就使用 Windows 连到我的 Unix 工作站工作！好死不死，我一个程序跑下来要 2~3 天，唉～偏偏常常到了第 2.5 天的时候， Windows 98 就给他挂点去！当初真的是给他怕死了～
+
+后来因为换了新计算机，用了随机版的 Windows 2000 ，呵呵，这东西真不错 （指对单人而言） ，在死机的时候， 他可以仅将错误的程序踢掉，而不干擾其他的程序进行，呵呵！ 从此以后，就不用担心会死机连连啰！不过，2000 毕竟还不够好，因为有的时候还是会死当！
+
+那么 Linux 会有这样的问题吗？老实说， Linux 几乎可以说绝对不会死机的！因为他可以在任何时候， 将某个被困住的程序杀掉，然后再重新执行该程序而不用重新开机！够炫吧！那么如果我在 Linux 下以文字界面登陆，在屏幕当中显示错误讯息后就挂了～动都不能动，该如何是好！？ 这个时候那默认的七个窗口就帮上忙啦！你可以随意的再按 [Alt]+[F1].....[F7] 来切换到其他的终端机界面，然后以 [ps -aux](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html#ps) 找出刚刚的错误程序，然后给他 [kill](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html#kill) 一下，哈哈，回到刚刚的终端机界面！恩～棒！又回复正常啰！
+
+为什么可以这样做呢？我们刚刚不是提过吗？每个程序之间可能是独立的，也可能有相依性， 只要到独立的程序当中，删除有问题的那个程序，当然他就可以被系统移除掉啦！^_^
+
+- bash 环境下的工作管理 （job control）
+
+我们在上一个小节有提到所谓的“父程序、子程序”的关系，那我们登陆 bash 之后， 就是取得一个名为 bash 的 PID 了，而在这个环境下面所执行的其他指令， 就几乎都是所谓的子程序了。那么，在这个单一的 bash 接口下，我可不可以进行多个工作啊？ 当然可以啦！可以“同时”进行喔！举例来说，我可以这样做：
+
+```
+[root@study ~]# cp file1 file2 &
+```
+
+在这一串指令中，重点在那个 & 的功能，他表示将 file1 这个文件复制为 file2 ，且放置于背景中执行， 也就是说执行这一个命令之后，在这一个终端接口仍然可以做其他的工作！而当这一个指令 （cp file1 file2） 执行完毕之后，系统将会在你的终端接口显示完成的消息！很便利喔！
+
+- 多用户多任务的系统资源分配问题考虑：
+
+多用户多任务确实有很多的好处，但其实也有管理上的困扰，因为使用者越来越多， 将导致你管理上的困扰哩！另外，由于使用者日盛，当使用者达到一定的人数后， 通常你的机器便需要升级了，因为 CPU 的运算与 RAM 的大小可能就会不敷使用！
+
+举个例子来说，鸟哥之前的网站管理的有点不太好，因为使用了一个很复杂的人数统计程序， 这个程序会一直去取用 MySQL 数据库的数据，偏偏因为流量大，造成 MySQL 很忙碌。 在这样的情况下，当鸟哥要登陆去写网页数据，或者要去使用讨论区的资源时， 哇！慢的很！简直就是“龟速”啊！后来终于将这个程序停止不用了， 以自己写的一个小程序来取代，呵呵！这样才让 CPU 的负载 （loading） 整个降下来～ 用起来顺畅多了！ ^_^
+
+
+
 ## 16.2 工作管理（Job Control）
 
 工作管理（Job Control）用于管理在单一终端接口中同时进行多个任务的行为。在登录Bash Shell之后，可以在同一终端下同时进行多个工作，如复制文件、数据搜索、编译、编写程序等，而无需重复登录多个终端。这种多任务管理在Bash环境中尤为重要。
@@ -144,6 +188,25 @@ bash
 
 工作管理（Job Control）指的是在Bash环境中管理由当前Shell启动的子程序。无法跨终端管理其他Shell的工作。工作可以在前景（foreground）和背景（background）中运行。在背景中的工作不能与用户交互（如需要用户输入），而前景工作可以与用户交互。
 
+#### 原文：
+
+从上面的说明当中，你应该要了解的是：“进行工作管理的行为中， 其实每个工作都是目前 bash 的子程序，亦即彼此之间是有相关性的。 我们无法以 job control 的方式由 tty1 的环境去管理 tty2 的 bash ！” 这个概念请你得先创建起来，后续的范例介绍之后，你就会清楚的了解啰！
+
+或许你会觉得很奇怪啊，既然我可以在六个终端接口登陆，那何必使用 job control 呢？ 真是脱裤子放屁，多此一举啊！不要忘记了呢，我们可以在 [/etc/security/limits.conf （第十三章）](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html#limits) 里面设置使用者同时可以登陆的连线数，在这样的情况下，某些使用者可能仅能以一个连线来工作呢！ 所以啰，你就得要了解一下这种工作管理的模式了！此外，这个章节内容也会牵涉到很多的数据流重导向，所以，如果忘记的话， 务必回到[第十章 BASH Shell](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html) 看一看喔！
+
+由于假设我们只有一个终端接口，因此在可以出现提示字符让你操作的环境就称为前景 （foreground），至于其他工作就可以让你放入背景 （background） 去暂停或运行。要注意的是，放入背景的工作想要运行时， 他必须不能够与使用者互动。举例来说， vim 绝对不可能在背景里面执行 （running） 的！因为你没有输入数据他就不会跑啊！ 而且放入背景的工作是不可以使用 [ctrl]+c 来终止的！
+
+总之，要进行 bash 的 job control 必须要注意到的限制是：
+
+- 这些工作所触发的程序必须来自于你 shell 的子程序（只管理自己的 bash）；
+- 前景：你可以控制与下达指令的这个环境称为前景的工作 （foreground）；
+- 背景：可以自行运行的工作，你无法使用 [ctrl]+c 终止他，可使用 bg/fg 调用该工作；
+- 背景中“执行”的程序不能等待 terminal/shell 的输入（input）
+
+接下来让我们实际来管理这些工作吧！
+
+
+
 ### 16.2.2 Job Control的管理
 
 #### 将指令丢到背景中执行：&
@@ -151,7 +214,7 @@ bash
 使用`&`符号可以将一个工作放入背景中执行。例如：
 
 ```
-bash复制代码[root@study ~]# tar -zpcf /tmp/etc.tar.gz /etc &
+[root@study ~]# tar -zpcf /tmp/etc.tar.gz /etc &
 [1] 14432  # [1]是工作号，14432是PID
 ```
 
@@ -162,7 +225,7 @@ bash复制代码[root@study ~]# tar -zpcf /tmp/etc.tar.gz /etc &
 在Bash环境中，可以使用`Ctrl+Z`将当前工作放入背景中暂停。例如：
 
 ```
-bash复制代码[root@study ~]# vim ~/.bashrc
+[root@study ~]# vim ~/.bashrc
 # 在vim中按下Ctrl+Z
 [1]+  Stopped  vim ~/.bashrc
 [root@study ~]#
@@ -173,7 +236,7 @@ bash复制代码[root@study ~]# vim ~/.bashrc
 使用`jobs`命令可以查看当前Shell中的所有背景工作。例如：
 
 ```
-bash复制代码[root@study ~]# jobs -l
+[root@study ~]# jobs -l
 [1]- 14566 Stopped  vim ~/.bashrc
 [2]+ 14567 Stopped  find / -print
 ```
@@ -183,8 +246,6 @@ bash复制代码[root@study ~]# jobs -l
 使用`fg`命令可以将背景工作拿到前景中。例如：
 
 ```
-bash
-复制代码
 [root@study ~]# fg %1  # 将工作号为1的工作拿到前景
 ```
 
@@ -193,8 +254,6 @@ bash
 使用`bg`命令可以将背景中暂停的工作设置为运行。例如：
 
 ```
-bash
-复制代码
 [root@study ~]# bg %3  # 将工作号为3的工作在背景中运行
 ```
 
@@ -203,8 +262,6 @@ bash
 使用`kill`命令可以发送信号来管理工作。例如：
 
 ```
-bash
-复制代码
 [root@study ~]# kill -9 %2  # 强制终止工作号为2的工作
 ```
 
@@ -215,18 +272,218 @@ bash
 - `-9`：强制终止一个工作
 - `-15`：以正常方式终止一个工作（默认值）
 
+#### 原文：
+
+如前所述，bash 只能够管理自己的工作而不能管理其他 bash 的工作，所以即使你是 root 也不能够将别人的 bash 下面的 job 给他拿过来执行。此外，又分前景与背景，然后在背景里面的工作状态又可以分为“暂停 （stop）”与“运行中 （running）”。那实际进行 job 控制的指令有哪些？下面就来谈谈。
+
+- 直接将指令丢到背景中“执行”的 &
+
+如同前面提到的，我们在只有一个 bash 的环境下，如果想要同时进行多个工作， 那么可以将某些工作直接丢到背景环境当中，让我们可以继续操作前景的工作！那么如何将工作丢到背景中？ 最简单的方法就是利用“ & ”这个玩意儿了！举个简单的例子，我们要将 /etc/ 整个备份成为 /tmp/etc.tar.gz 且不想要等待，那么可以这样做：
+
+```
+[root@study ~]# tar -zpcf /tmp/etc.tar.gz /etc &
+[1] 14432  &lt;== [job number] PID 
+[root@study ~]# tar: Removing leading `/' from member names 
+# 在中括号内的号码为工作号码 （job number），该号码与 bash 的控制有关。
+# 后续的 14432 则是这个工作在系统中的 PID。至于后续出现的数据是 tar 执行的数据流，
+# 由于我们没有加上数据流重导向，所以会影响画面！不过不会影响前景的操作喔！
+```
+
+仔细的瞧一瞧，我在输入一个指令后，在该指令的最后面加上一个“ & ”代表将该指令丢到背景中， 此时 bash 会给予这个指令一个“工作号码（job number）”，就是那个 [1] 啦！至于后面那个 14432 则是该指令所触发的“ PID ”了！而且，有趣的是，我们可以继续操作 bash 呢！很不赖吧！ 不过，那么丢到背景中的工作什么时候完成？完成的时候会显示什么？如果你输入几个指令后，突然出现这个数据：
+
+```
+[1]+  Done                    tar -zpcf /tmp/etc.tar.gz /etc
+```
+
+就代表 [1] 这个工作已经完成 （Done） ，该工作的指令则是接在后面那一串命令行。 这样了解了吧！另外，这个 & 代表：“将工作丢到背景中去执行”喔！ 注意到那个“执行”的字眼！此外，这样的情况最大的好处是： 不怕被 [ctrl]+c 中断的啦！ 此外，将工作丢到背景当中要特别注意数据的流向喔！包括上面的讯息就有出现错误讯息，导致我的前景被影响。 虽然只要按下 [enter] 就会出现提示字符。但如果我将刚刚那个指令改成：
+
+```
+[root@study ~]# tar -zpcvf /tmp/etc.tar.gz /etc &
+```
+
+情况会怎样？在背景当中执行的指令，如果有 stdout 及 stderr 时，他的数据依旧是输出到屏幕上面的， 所以，我们会无法看到提示字符，当然也就无法完好的掌握前景工作。同时由于是背景工作的 tar ， 此时你怎么按下 [ctrl]+c 也无法停止屏幕被搞的花花绿绿的！所以啰，最佳的状况就是利用数据流重导向， 将输出数据传送至某个文件中。举例来说，我可以这样做：
+
+```
+[root@study ~]# tar -zpcvf /tmp/etc.tar.gz /etc &gt; /tmp/log.txt 2&gt;&1 &
+[1] 14547
+[root@study ~]#
+```
+
+呵呵！如此一来，输出的信息都给他传送到 /tmp/log.txt 当中，当然就不会影响到我们前景的作业了。 这样说，您应该可以更清楚数据流重导向的重要性了吧！^_^
+
+![鸟哥的图示](image/vbird_face.gif)
+
+**Tips** 工作号码 （job number） 只与你这个 bash 环境有关，但是他既然是个指令触发的咚咚，所以当然一定是一个程序， 因此你会观察到有 job number 也搭配一个 PID ！
+
+- 将“目前”的工作丢到背景中“暂停”：[ctrl]-z
+
+想个情况：如果我正在使用 vim ，却发现我有个文件不知道放在哪里，需要到 bash 环境下进行搜寻，此时是否要结束 vim 呢？呵呵！当然不需要啊！只要暂时将 vim 给他丢到背景当中等待即可。 例如以下的案例：
+
+```
+[root@study ~]# vim  ~/.bashrc
+# 在 vim 的一般模式下，按下 [ctrl]-z 这两个按键
+[1]+  Stopped                 vim ~/.bashrc
+[root@study ~]#   &lt;==顺利取得了前景的操控权！
+[root@study ~]# find / -print
+....（输出省略）....
+# 此时屏幕会非常的忙碌！因为屏幕上会显示所有的文件名。请按下 [ctrl]-z 暂停
+[2]+  Stopped                 find / -print
+```
+
+在 vim 的一般模式下，按下 [ctrl] 及 z 这两个按键，屏幕上会出现 [1] ，表示这是第一个工作， 而那个 + 代表最近一个被丢进背景的工作，且目前在背景下默认会被取用的那个工作 （与 fg 这个指令有关 ）！而那个 Stopped 则代表目前这个工作的状态。在默认的情况下，使用 [ctrl]-z 丢到背景当中的工作都是“暂停”的状态喔！
+
+- 观察目前的背景工作状态： jobs
+
+```
+[root@study ~]# jobs [-lrs]
+选项与参数：
+-l  ：除了列出 job number 与指令串之外，同时列出 PID 的号码；
+-r  ：仅列出正在背景 run 的工作；
+-s  ：仅列出正在背景当中暂停 （stop） 的工作。
+
+范例一：观察目前的 bash 当中，所有的工作，与对应的 PID
+[root@study ~]# jobs -l
+[1]- 14566 Stopped                 vim ~/.bashrc
+[2]+ 14567 Stopped                 find / -print
+```
+
+如果想要知道目前有多少的工作在背景当中，就用 jobs 这个指令吧！一般来说，直接下达 jobs 即可！ 不过，如果你还想要知道该 job number 的 PID 号码，可以加上 -l 这个参数啦！ 在输出的信息当中，例如上表，仔细看到那个 + - 号喔！那个 + 代表默认的取用工作。 所以说：“目前我有两个工作在背景当中，两个工作都是暂停的， 而如果我仅输入 fg 时，那么那个 [2] 会被拿到前景当中来处理”！
+
+其实 + 代表最近被放到背景的工作号码， - 代表最近最后第二个被放置到背景中的工作号码。 而超过最后第三个以后的工作，就不会有 +/- 符号存在了！
+
+- 将背景工作拿到前景来处理：fg
+
+刚刚提到的都是将工作丢到背景当中去执行的，那么有没有可以将背景工作拿到前景来处理的？ 有啊！就是那个 fg （foreground） 啦！举例来说，我们想要将上头范例当中的工作拿出来处理时：
+
+```
+[root@study ~]# fg %jobnumber
+选项与参数：
+%jobnumber ：jobnumber 为工作号码（数字）。注意，那个 % 是可有可无的！
+
+范例一：先以 jobs 观察工作，再将工作取出：
+[root@study ~]# jobs -l
+[1]- 14566 Stopped                 vim ~/.bashrc
+[2]+ 14567 Stopped                 find / -print
+[root@study ~]# fg      &lt;==默认取出那个 + 的工作，亦即 [2]。立即按下[ctrl]-z
+[root@study ~]# fg %1   &lt;==直接规定取出的那个工作号码！再按下[ctrl]-z
+[root@study ~]# jobs -l
+[1]+ 14566 Stopped                 vim ~/.bashrc
+[2]- 14567 Stopped                 find / -print
+```
+
+经过 fg 指令就能够将背景工作拿到前景来处理啰！不过比较有趣的是最后一个显示的结果，我们会发现 + 出现在第一个工作后！ 怎么会这样啊？这是因为你刚刚利用 fg %1 将第一号工作捉到前景后又放回背景，此时最后一个被放入背景的将变成 vi 那个指令动作， 所以当然 [1] 后面就会出现 + 了！了解乎！另外，如果输入“ fg - ” 则代表将 - 号的那个工作号码拿出来，上面就是 [2]- 那个工作号码啦！
+
+- 让工作在背景下的状态变成运行中： bg
+
+我们刚刚提到，那个 [ctrl]-z 可以将目前的工作丢到背景下面去“暂停”， 那么如何让一个工作在背景下面“ Run ”呢？我们可以在下面这个案例当中来测试！ 注意喔！下面的测试要进行的快一点！^_^
+
+```
+范例一：一执行 find / -perm /7000 &gt; /tmp/text.txt 后，立刻丢到背景去暂停！
+[root@study ~]# find / -perm /7000 &gt; /tmp/text.txt
+# 此时，请立刻按下 [ctrl]-z 暂停！
+[3]+  Stopped                 find / -perm /7000 &gt; /tmp/text.txt
+
+范例二：让该工作在背景下进行，并且观察他！！
+[root@study ~]# jobs ; bg %3 ; jobs
+[1]   Stopped                 vim ~/.bashrc
+[2]-  Stopped                 find / -print
+[3]+  Stopped                 find / -perm /7000 &gt; /tmp/text.txt
+[3]+ find / -perm /7000 &gt; /tmp/text.txt &
+[1]-  Stopped                 vim ~/.bashrc
+[2]+  Stopped                 find / -print
+[3]   Running                 find / -perm /7000 &gt; /tmp/text.txt &
+```
+
+看到哪里有差异吗？呼呼！没错！就是那个状态列～以经由 Stopping 变成了 Running 啰！ 看到差异点，嘿嘿！命令行最后方多了一个 & 的符号啰！ 代表该工作被启动在背景当中了啦！ ^_^
+
+- 管理背景当中的工作： kill
+
+刚刚我们可以让一个已经在背景当中的工作继续工作，也可以让该工作以 fg 拿到前景来， 那么，如果想要将该工作直接移除呢？或者是将该工作重新启动呢？这个时候就得需要给予该工作一个讯号 （signal） ，让他知道该怎么作才好啊！此时， kill 这个指令就派上用场啦！
+
+```
+[root@study ~]# kill -signal %jobnumber
+[root@study ~]# kill -l
+选项与参数：
+-l  ：这个是 L 的小写，列出目前 kill 能够使用的讯号 （signal） 有哪些？
+signal ：代表给予后面接的那个工作什么样的指示啰！用 man 7 signal 可知：
+  -1 ：重新读取一次参数的配置文件 （类似 reload）；
+  -2 ：代表与由键盘输入 [ctrl]-c 同样的动作；
+  -9 ：立刻强制删除一个工作；
+  -15：以正常的程序方式终止一项工作。与 -9 是不一样的。
+
+范例一：找出目前的 bash 环境下的背景工作，并将该工作“强制删除”。
+[root@study ~]# jobs
+[1]+  Stopped                 vim ~/.bashrc
+[2]   Stopped                 find / -print
+[root@study ~]# kill -9 %2; jobs
+[1]+  Stopped                 vim ~/.bashrc
+[2]   Killed                  find / -print
+# 再过几秒你再下达 jobs 一次，就会发现 2 号工作不见了！因为被移除了！
+
+范例二：找出目前的 bash 环境下的背景工作，并将该工作“正常终止”掉。
+[root@study ~]# jobs
+[1]+  Stopped                 vim ~/.bashrc
+[root@study ~]# kill -SIGTERM %1
+# -SIGTERM 与 -15 是一样的！您可以使用 kill -l 来查阅！
+# 不过在这个案例中， vim 的工作无法被结束喔！因为他无法通过 kill 正常终止的意思！
+```
+
+特别留意一下， -9 这个 signal 通常是用在“强制删除一个不正常的工作”时所使用的， -15 则是以正常步骤结束一项工作（15也是默认值），两者之间并不相同呦！举上面的例子来说， 我用 vim 的时候，不是会产生一个 .filename.swp 的文件吗？ 那么，当使用 -15 这个 signal 时， vim 会尝试以正常的步骤来结束掉该 vi 的工作， 所以 .filename.swp 会主动的被移除。但若是使用 -9 这个 signal 时，由于该 vim 工作会被强制移除掉，因此， .filename.swp 就会继续存在文件系统当中。这样您应该可以稍微分辨一下了吧？
+
+不过，毕竟正常的作法中，你应该先使用 fg 来取回前景控制权，然后再离开 vim 才对～因此，以上面的范例二为例，其实 kill 确实无法使用 -15 正常的结束掉 vim 的动作喔！此时还是不建议使用 -9 啦！因为你知道如何正常结束该程序不是吗？ 通常使用 -9 是因为某些程序你真的不知道怎么通过正常手段去终止他，这才用到 -9 的！
+
+其实， kill 的妙用是很无穷的啦！他搭配 signal 所详列的信息 （用 man 7 signal 去查阅相关数据） 可以让您有效的管理工作与程序 （Process），此外，那个 killall 也是同样的用法！ 至于常用的 signal 您至少需要了解 1, 9, 15 这三个 signal 的意义才好。 此外， signal 除了以数值来表示之外，也可以使用讯号名称喔！ 举例来说，上面的范例二就是一个例子啦！至于 signal number 与名称的对应， 呵呵，使用 kill -l 就知道啦（L的小写）！
+
+另外， kill 后面接的数字默认会是 PID ，如果想要管理 bash 的工作控制，就得要加上 %数字 了， 这点也得特别留意才行喔！
+
+
+
 ### 16.2.3 离线管理问题
 
 在远程登录情况下，将工作放入背景中执行，如果在工作未完成前断开连接，工作将会被中断。可以使用`nohup`命令来确保工作在断开连接后继续运行。例如：
 
 ```
-bash复制代码[root@study ~]# nohup ./sleep500.sh &
+[root@study ~]# nohup ./sleep500.sh &
 nohup: ignoring input and appending output to 'nohup.out'
 ```
 
 `nohup`命令可以在登出或断开连接后继续运行工作，输出会被重定向到`nohup.out`文件中。
 
 通过以上方式，可以有效地管理和控制在Bash环境下的多任务处理，提高工作效率。
+
+#### 原文：
+
+要注意的是，我们在工作管理当中提到的“背景”指的是在终端机模式下可以避免 [crtl]-c 中断的一个情境， 你可以说那个是 bash 的背景，并不是放到系统的背景去喔！所以，工作管理的背景依旧与终端机有关啦！ 在这样的情况下，如果你是以远端连线方式连接到你的 Linux 主机，并且将工作以 & 的方式放到背景去， 请问，在工作尚未结束的情况下你离线了，该工作还会继续进行吗？答案是“否”！不会继续进行，而是会被中断掉。
+
+那怎么办？如果我的工作需要进行一大段时间，我又不能放置在背景下面，那该如何处理呢？ 首先，你可以参考前一章的 [at](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html#at) 来处理即可！因为 at 是将工作放置到系统背景， 而与终端机无关。如果不想要使用 at 的话，那你也可以尝试使用 nohup 这个指令来处理喔！这个 nohup 可以让你在离线或登出系统后，还能够让工作继续进行。他的语法有点像这样：
+
+```
+[root@study ~]# nohup [指令与参数]   &lt;==在终端机前景中工作
+[root@study ~]# nohup [指令与参数] & &lt;==在终端机背景中工作
+```
+
+有够好简单的指令吧！上述指令需要注意的是， nohup 并不支持 bash 内置的指令，因此你的指令必须要是外部指令才行。 我们来尝试玩一下下面的任务吧！
+
+```
+# 1\. 先编辑一支会“睡着 500 秒”的程序：
+[root@study ~]# vim sleep500.sh
+#!/bin/bash
+/bin/sleep 500s
+/bin/echo "I have slept 500 seconds."
+
+# 2\. 丢到背景中去执行，并且立刻登出系统：
+[root@study ~]# chmod a+x sleep500.sh
+[root@study ~]# nohup ./sleep500.sh &
+[2] 14812
+[root@study ~]#  nohup: ignoring input and appending output to `nohup.out' &lt;==会告知这个讯息！
+[root@study ~]# exit
+```
+
+如果你再次登陆的话，再使用 pstree 去查阅你的程序，会发现 sleep500.sh 还在执行中喔！并不会被中断掉！ 这样了解意思了吗？由于我们的程序最后会输出一个讯息，但是 nohup 与终端机其实无关了， 因此这个讯息的输出就会被导向“ ~/nohup.out ”，所以你才会看到上述指令中，当你输入 nohup 后， 会出现那个提示讯息啰。
+
+如果你想要让在背景的工作在你登出后还能够继续的执行，那么使用 nohup 搭配 & 是不错的运行情境喔！ 可以参考看看！
+
+
 
 ## 16.3 程序管理
 
@@ -243,24 +500,18 @@ nohup: ignoring input and appending output to 'nohup.out'
 - 查看所有系统的进程：
 
   ```
-  bash
-  复制代码
   ps aux
   ```
-
+  
 - 查看详细的进程信息：
 
   ```
-  bash
-  复制代码
   ps -lA
   ```
-
+  
 - 查看进程树状态：
 
   ```
-  bash
-  复制代码
   ps axjf
   ```
 
@@ -273,16 +524,12 @@ nohup: ignoring input and appending output to 'nohup.out'
 - 启动`top`：
 
   ```
-  bash
-  复制代码
   top
   ```
-
+  
 - 每两秒更新一次：
 
   ```
-  bash
-  复制代码
   top -d 2
   ```
 
@@ -295,28 +542,329 @@ nohup: ignoring input and appending output to 'nohup.out'
 - 显示进程树：
 
   ```
-  bash
-  复制代码
   pstree
   ```
-
+  
 - 显示进程树并包含进程ID：
 
   ```
-  bash
-  复制代码
   pstree -p
   ```
-
+  
 - 显示进程树并包含用户信息：
 
   ```
-  bash
-  复制代码
   pstree -u
   ```
 
 通过`pstree`，可以直观地了解进程之间的父子关系，有助于找出问题进程的父进程。
+
+#### 原文：
+
+既然程序这么重要，那么我们如何查阅系统上面正在运行当中的程序呢？很简单啊！ 利用静态的 ps 或者是动态的 top，还能以 pstree 来查阅程序树之间的关系喔！
+
+- ps ：将某个时间点的程序运行情况撷取下来
+
+```
+[root@study ~]# ps aux  &lt;==观察系统所有的程序数据
+[root@study ~]# ps -lA  &lt;==也是能够观察所有系统的数据
+[root@study ~]# ps axjf &lt;==连同部分程序树状态
+选项与参数：
+-A  ：所有的 process 均显示出来，与 -e 具有同样的效用；
+-a  ：不与 terminal 有关的所有 process ；
+-u  ：有效使用者 （effective user） 相关的 process ；
+x   ：通常与 a 这个参数一起使用，可列出较完整信息。
+输出格式规划：
+l   ：较长、较详细的将该 PID 的的信息列出；
+j   ：工作的格式 （jobs format）
+-f  ：做一个更为完整的输出。
+```
+
+鸟哥个人认为 ps 这个指令的 man page 不是很好查阅，因为很多不同的 Unix 都使用这个 ps 来查阅程序状态， 为了要符合不同版本的需求，所以这个 man page 写的非常的庞大！因此，通常鸟哥都会建议你，直接背两个比较不同的选项， 一个是只能查阅自己 bash 程序的“ ps -l ”一个则是可以查阅所有系统运行的程序“ ps aux ”！注意，你没看错，是“ ps aux ”没有那个减号 （-） ！先来看看关于自己 bash 程序状态的观察：
+
+- 仅观察自己的 bash 相关程序： ps -l
+
+```
+范例一：将目前属于您自己这次登陆的 PID 与相关信息列示出来（只与自己的 bash 有关）
+[root@study ~]# ps -l
+F S   UID   PID  PPID  C PRI  NI ADDR SZ WCHAN  TTY          TIME CMD
+4 S     0 14830 13970  0  80   0 - 52686 poll_s pts/0    00:00:00 sudo
+4 S     0 14835 14830  0  80   0 - 50511 wait   pts/0    00:00:00 su
+4 S     0 14836 14835  0  80   0 - 29035 wait   pts/0    00:00:00 bash
+0 R     0 15011 14836  0  80   0 - 30319 -      pts/0    00:00:00 ps
+# 还记得鸟哥说过，非必要不要使用 root 直接登陆吧？从这个 ps -l 的分析，你也可以发现，
+# 鸟哥其实是使用 sudo 才转成 root 的身份～否则连测试机，鸟哥都是使用一般帐号登陆的！
+```
+
+系统整体的程序运行是非常多的，但如果使用 ps -l 则仅列出与你的操作环境 （bash） 有关的程序而已， 亦即最上层的父程序会是你自己的 bash 而没有延伸到 systemd （后续会交待！） 这支程序去！那么 ps -l 秀出来的数据有哪些呢？ 我们就来观察看看：
+
+- F：代表这个程序旗标 （process flags），说明这个程序的总结权限，常见号码有：
+  - 若为 4 表示此程序的权限为 root ；
+  - 若为 1 则表示此子程序仅进行[复制（fork）而没有实际执行（exec）](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html#fork_and_exec)。
+- S：代表这个程序的状态 （STAT），主要的状态有：
+  - R （Running）：该程序正在运行中；
+  - S （Sleep）：该程序目前正在睡眠状态（idle），但可以被唤醒（signal）。
+  - D ：不可被唤醒的睡眠状态，通常这支程序可能在等待 I/O 的情况（ex>打印）
+  - T ：停止状态（stop），可能是在工作控制（背景暂停）或除错 （traced） 状态；
+  - Z （Zombie）：僵尸状态，程序已经终止但却无法被移除至内存外。
+- UID/PID/PPID：代表“此程序被该 UID 所拥有/程序的 PID 号码/此程序的父程序 PID 号码”
+- C：代表 CPU 使用率，单位为百分比；
+- PRI/NI：Priority/Nice 的缩写，代表此程序被 CPU 所执行的优先顺序，数值越小代表该程序越快被 CPU 执行。详细的 PRI 与 NI 将在[下一小节](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html#priority)说明。
+- ADDR/SZ/WCHAN：都与内存有关，ADDR 是 kernel function，指出该程序在内存的哪个部分，如果是个 running 的程序，一般就会显示“ - ” / SZ 代表此程序用掉多少内存 / WCHAN 表示目前程序是否运行中，同样的， 若为 - 表示正在运行中。
+- TTY：登陆者的终端机位置，若为远端登陆则使用动态终端接口 （pts/n）；
+- TIME：使用掉的 CPU 时间，注意，是此程序实际花费 CPU 运行的时间，而不是系统时间；
+- CMD：就是 command 的缩写，造成此程序的触发程序之指令为何。
+
+所以你看到的 ps -l 输出讯息中，他说明的是：“bash 的程序属于 UID 为 0 的使用者，状态为睡眠 （sleep）， 之所以为睡眠因为他触发了 ps （状态为 run） 之故。此程序的 PID 为 14836，优先执行顺序为 80 ， 下达 bash 所取得的终端接口为 pts/0 ，运行状态为等待 （wait） 。”这样已经够清楚了吧？ 您自己尝试解析一下那么 ps 那一行代表的意义为何呢？ ^_^
+
+接下来让我们使用 ps 来观察一下系统内所有的程序状态吧！
+
+- 观察系统所有程序： ps aux
+
+```
+范例二：列出目前所有的正在内存当中的程序：
+[root@study ~]# ps aux
+USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+root         1  0.0  0.2  60636  7948 ?        Ss   Aug04   0:01 /usr/lib/systemd/systemd ...
+root         2  0.0  0.0      0     0 ?        S    Aug04   0:00 [kthreadd]
+.....（中间省略）.....
+root     14830  0.0  0.1 210744  3988 pts/0    S    Aug04   0:00 sudo su -
+root     14835  0.0  0.1 202044  2996 pts/0    S    Aug04   0:00 su -
+root     14836  0.0  0.1 116140  2960 pts/0    S    Aug04   0:00 -bash
+.....（中间省略）.....
+root     18459  0.0  0.0 123372  1380 pts/0    R+   00:25   0:00 ps aux
+```
+
+你会发现 ps -l 与 ps aux 显示的项目并不相同！在 ps aux 显示的项目中，各字段的意义为：
+
+- USER：该 process 属于那个使用者帐号的？
+- PID ：该 process 的程序识别码。
+- %CPU：该 process 使用掉的 CPU 资源百分比；
+- %MEM：该 process 所占用的实体内存百分比；
+- VSZ ：该 process 使用掉的虚拟内存量 （KBytes）
+- RSS ：该 process 占用的固定的内存量 （KBytes）
+- TTY ：该 process 是在那个终端机上面运行，若与终端机无关则显示 ?，另外， tty1-tty6 是本机上面的登陆者程序，若为 pts/0 等等的，则表示为由网络连接进主机的程序。
+- STAT：该程序目前的状态，状态显示与 ps -l 的 S 旗标相同 （R/S/T/Z）
+- START：该 process 被触发启动的时间；
+- TIME ：该 process 实际使用 CPU 运行的时间。
+- COMMAND：该程序的实际指令为何？
+
+一般来说，ps aux 会依照 PID 的顺序来排序显示，我们还是以 14836 那个 PID 那行来说明！该行的意义为“ root 执行的 bash PID 为 14836，占用了 0.1% 的内存容量百分比，状态为休眠 （S），该程序启动的时间为 8 月 4 号，因此启动太久了， 所以没有列出实际的时间点。且取得的终端机环境为 pts/0 。”与 ps aux 看到的其实是同一个程序啦！这样可以理解吗？ 让我们继续使用 ps 来观察一下其他的信息吧！
+
+```
+范例三：以范例一的显示内容，显示出所有的程序：
+[root@study ~]# ps -lA
+F S   UID   PID  PPID  C PRI  NI ADDR SZ WCHAN  TTY          TIME CMD
+4 S     0     1     0  0  80   0 - 15159 ep_pol ?        00:00:01 systemd
+1 S     0     2     0  0  80   0 -     0 kthrea ?        00:00:00 kthreadd
+1 S     0     3     2  0  80   0 -     0 smpboo ?        00:00:00 ksoftirqd/0
+....（以下省略）....
+# 你会发现每个字段与 ps -l 的输出情况相同，但显示的程序则包括系统所有的程序。
+
+范例四：列出类似程序树的程序显示：
+[root@study ~]# ps axjf
+ PPID   PID  PGID   SID TTY      TPGID STAT   UID   TIME COMMAND
+    0     2     0     0 ?           -1 S        0   0:00 [kthreadd]
+    2     3     0     0 ?           -1 S        0   0:00  \_ [ksoftirqd/0]
+.....（中间省略）.....
+    1  1326  1326  1326 ?           -1 Ss       0   0:00 /usr/sbin/sshd -D
+ 1326 13923 13923 13923 ?           -1 Ss       0   0:00  \_ sshd: dmtsai [priv]
+13923 13927 13923 13923 ?           -1 S     1000   0:00      \_ sshd: dmtsai@pts/0
+13927 13928 13928 13928 pts/0    18703 Ss    1000   0:00          \_ -bash
+13928 13970 13970 13928 pts/0    18703 S     1000   0:00              \_ bash
+13970 14830 14830 13928 pts/0    18703 S        0   0:00                  \_ sudo su -
+14830 14835 14830 13928 pts/0    18703 S        0   0:00                      \_ su -
+14835 14836 14836 13928 pts/0    18703 S        0   0:00                          \_ -bash
+14836 18703 18703 13928 pts/0    18703 R+       0   0:00                              \_ ps axjf
+.....（后面省略）.....
+```
+
+看出来了吧？其实鸟哥在进行一些测试时，都是以网络连线进虚拟机来测试的，所以啰，你会发现其实程序之间是有相关性的啦！ 不过，其实还可以使用 pstree 来达成这个程序树喔！以上面的例子来看，鸟哥是通过 sshd 提供的网络服务取得一个程序， 该程序提供 bash 给我使用，而我通过 bash 再去执行 ps axjf ！这样可以看的懂了吗？其他各字段的意义请 man ps （虽然真的很难 man 的出来！） 啰！
+
+```
+范例五：找出与 cron 与 rsyslog 这两个服务有关的 PID 号码？
+[root@study ~]# ps aux &#124; egrep '（cron&#124;rsyslog）'
+root       742  0.0  0.1 208012  4088 ?        Ssl  Aug04   0:00 /usr/sbin/rsyslogd -n
+root      1338  0.0  0.0 126304  1704 ?        Ss   Aug04   0:00 /usr/sbin/crond -n
+root     18740  0.0  0.0 112644   980 pts/0    S+   00:49   0:00 grep -E --color=auto （cron&#124;rsyslog）
+# 所以号码是 742 及 1338 这两个啰！就是这样找的啦！
+```
+
+除此之外，我们必须要知道的是“僵尸 （zombie） ”程序是什么？ 通常，造成僵尸程序的成因是因为该程序应该已经执行完毕，或者是因故应该要终止了， 但是该程序的父程序却无法完整的将该程序结束掉，而造成那个程序一直存在内存当中。 如果你发现在某个程序的 CMD 后面还接上 <defunct> 时，就代表该程序是僵尸程序啦，例如：
+
+```
+apache  8683  0.0  0.9 83384 9992 ?   Z  14:33   0:00 /usr/sbin/httpd &lt;defunct&gt;
+```
+
+当系统不稳定的时候就容易造成所谓的僵尸程序，可能是因为程序写的不好啦，或者是使用者的操作习惯不良等等所造成。 如果你发现系统中很多僵尸程序时，记得啊！要找出该程序的父程序，然后好好的做个追踪，好好的进行主机的环境最优化啊！ 看看有什么地方需要改善的，不要只是直接将他 kill 掉而已呢！不然的话，万一他一直产生，那可就麻烦了！ @_@
+
+事实上，通常僵尸程序都已经无法控管，而直接是交给 systemd 这支程序来负责了，偏偏 systemd 是系统第一支执行的程序， 他是所有程序的父程序！我们无法杀掉该程序的 （杀掉他，系统就死掉了！），所以啰，如果产生僵尸程序， 而系统过一阵子还没有办法通过核心非经常性的特殊处理来将该程序删除时，那你只好通过 reboot 的方式来将该程序抹去了！
+
+- top：动态观察程序的变化
+
+相对于 ps 是撷取一个时间点的程序状态， top 则可以持续侦测程序运行的状态！使用方式如下：
+
+```
+[root@study ~]# top [-d 数字] &#124; top [-bnp]
+选项与参数：
+-d  ：后面可以接秒数，就是整个程序画面更新的秒数。默认是 5 秒；
+-b  ：以批次的方式执行 top ，还有更多的参数可以使用喔！
+      通常会搭配数据流重导向来将批次的结果输出成为文件。
+-n  ：与 -b 搭配，意义是，需要进行几次 top 的输出结果。
+-p  ：指定某些个 PID 来进行观察监测而已。
+在 top 执行过程当中可以使用的按键指令：
+    ? ：显示在 top 当中可以输入的按键指令；
+    P ：以 CPU 的使用资源排序显示；
+    M ：以 Memory 的使用资源排序显示；
+    N ：以 PID 来排序喔！
+    T ：由该 Process 使用的 CPU 时间累积 （TIME+） 排序。
+    k ：给予某个 PID 一个讯号  （signal）
+    r ：给予某个 PID 重新制订一个 nice 值。
+    q ：离开 top 软件的按键。
+```
+
+其实 top 的功能非常多！可以用的按键也非常的多！可以参考 man top 的内部说明文档！ 鸟哥这里仅是列出一些鸟哥自己常用的选项而已。接下来让我们实际观察一下如何使用 top 与 top 的画面吧！
+
+```
+范例一：每两秒钟更新一次 top ，观察整体信息：
+[root@study ~]# top -d 2
+top - 00:53:59 up  6:07,  3 users,  load average: 0.00, 0.01, 0.05
+Tasks: 179 total,   2 running, 177 sleeping,   0 stopped,   0 zombie
+%Cpu（s）:  0.0 us,  0.0 sy,  0.0 ni,100.0 id,  0.0 wa,  0.0 hi,  0.0 si,  0.0 st
+KiB Mem :  2916388 total,  1839140 free,   353712 used,   723536 buff/cache
+KiB Swap:  1048572 total,  1048572 free,        0 used.  2318680 avail Mem
+    &lt;==如果加入 k 或 r 时，就会有相关的字样出现在这里喔！
+ PID USER      PR  NI    VIRT    RES    SHR S  %CPU %MEM     TIME+ COMMAND
+18804 root      20   0  130028   1872   1276 R   0.5  0.1   0:00.02 top
+    1 root      20   0   60636   7948   2656 S   0.0  0.3   0:01.70 systemd
+    2 root      20   0       0      0      0 S   0.0  0.0   0:00.01 kthreadd
+    3 root      20   0       0      0      0 S   0.0  0.0   0:00.00 ksoftirqd/0
+```
+
+top 也是个挺不错的程序观察工具！但不同于 ps 是静态的结果输出， top 这个程序可以持续的监测整个系统的程序工作状态。 在默认的情况下，每次更新程序资源的时间为 5 秒，不过，可以使用 -d 来进行修改。 top 主要分为两个画面，上面的画面为整个系统的资源使用状态，基本上总共有六行，显示的内容依序是：
+
+- 第一行（top...）：这一行显示的信息分别为：
+  - 目前的时间，亦即是 00:53:59 那个项目；
+  - 开机到目前为止所经过的时间，亦即是 up 6:07, 那个项目；
+  - 已经登陆系统的使用者人数，亦即是 3 users, 项目；
+  - 系统在 1, 5, 15 分钟的平均工作负载。我们在[第十五章谈到的 batch](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html#batch) 工作方式为负载小于 0.8 就是这个负载啰！代表的是 1, 5, 15 分钟，系统平均要负责运行几个程序（工作）的意思。 越小代表系统越闲置，若高于 1 得要注意你的系统程序是否太过繁复了！
+- 第二行（Tasks...）：显示的是目前程序的总量与个别程序在什么状态（running, sleeping, stopped, zombie）。 比较需要注意的是最后的 zombie 那个数值，如果不是 0 ！好好看看到底是那个 process 变成僵尸了吧？
+- 第三行（%Cpus...）：显示的是 CPU 的整体负载，每个项目可使用 ? 查阅。需要特别注意的是 wa 项目，那个项目代表的是 I/O wait， 通常你的系统会变慢都是 I/O 产生的问题比较大！因此这里得要注意这个项目耗用 CPU 的资源喔！ 另外，如果是多核心的设备，可以按下数字键“1”来切换成不同 CPU 的负载率。
+- 第四行与第五行：表示目前的实体内存与虚拟内存 （Mem/Swap） 的使用情况。 再次重申，要注意的是 swap 的使用量要尽量的少！如果 swap 被用的很大量，表示系统的实体内存实在不足！
+- 第六行：这个是当在 top 程序当中输入指令时，显示状态的地方。
+
+至于 top 下半部分的画面，则是每个 process 使用的资源情况。比较需要注意的是：
+
+- PID ：每个 process 的 ID 啦！
+- USER：该 process 所属的使用者；
+- PR ：Priority 的简写，程序的优先执行顺序，越小越早被执行；
+- NI ：Nice 的简写，与 Priority 有关，也是越小越早被执行；
+- %CPU：CPU 的使用率；
+- %MEM：内存的使用率；
+- TIME+：CPU 使用时间的累加；
+
+top 默认使用 CPU 使用率 （%CPU） 作为排序的重点，如果你想要使用内存使用率排序，则可以按下“M”， 若要回复则按下“P”即可。如果想要离开 top 则按下“ q ”吧！如果你想要将 top 的结果输出成为文件时， 可以这样做：
+
+```
+范例二：将 top 的信息进行 2 次，然后将结果输出到 /tmp/top.txt
+[root@study ~]# top -b -n 2 &gt; /tmp/top.txt
+# 这样一来，嘿嘿！就可以将 top 的信息存到 /tmp/top.txt 文件中了。
+```
+
+这玩意儿很有趣！可以帮助你将某个时段 top 观察到的结果存成文件，可以用在你想要在系统背景下面执行。 由于是背景下面执行，与终端机的屏幕大小无关，因此可以得到全部的程序画面！那如果你想要观察的程序 CPU 与内存使用率都很低，结果老是无法在第一行显示时，该怎办？我们可以仅观察单一程序喔！如下所示：
+
+```
+范例三：我们自己的 bash PID 可由 $$ 变量取得，请使用 top 持续观察该 PID
+[root@study ~]# echo $$
+14836  &lt;==就是这个数字！他是我们 bash 的 PID
+[root@study ~]# top -d 2 -p 14836
+top - 01:00:53 up  6:14,  3 users,  load average: 0.00, 0.01, 0.05
+Tasks:   1 total,   0 running,   1 sleeping,   0 stopped,   0 zombie
+%Cpu（s）:  0.0 us,  0.1 sy,  0.0 ni, 99.9 id,  0.0 wa,  0.0 hi,  0.0 si,  0.0 st
+KiB Mem :  2916388 total,  1839264 free,   353424 used,   723700 buff/cache
+KiB Swap:  1048572 total,  1048572 free,        0 used.  2318848 avail Mem
+
+ PID USER      PR  NI    VIRT    RES    SHR S  %CPU %MEM     TIME+ COMMAND
+14836 root      20   0  116272   3136   1848 S   0.0  0.1   0:00.07 bash
+```
+
+看到没！就只会有一支程序给你看！很容易观察吧！好，那么如果我想要在 top 下面进行一些动作呢？ 比方说，修改 NI 这个数值呢？可以这样做：
+
+```
+范例四：承上题，上面的 NI 值是 0 ，想要改成 10 的话？
+# 在范例三的 top 画面当中直接按下 r 之后，会出现如下的图样！
+top - 01:02:01 up  6:15,  3 users,  load average: 0.00, 0.01, 0.05
+Tasks:   1 total,   0 running,   1 sleeping,   0 stopped,   0 zombie
+%Cpu（s）:  0.1 us,  0.0 sy,  0.0 ni, 99.9 id,  0.0 wa,  0.0 hi,  0.0 si,  0.0 st
+KiB Mem :  2916388 total,  1839140 free,   353576 used,   723672 buff/cache
+KiB Swap:  1048572 total,  1048572 free,        0 used.  2318724 avail Mem
+PID to renice [default pid = 14836] 14836
+ PID USER      PR  NI    VIRT    RES    SHR S  %CPU %MEM     TIME+ COMMAND
+14836 root      20   0  116272   3136   1848 S   0.0  0.1   0:00.07 bash
+```
+
+在你完成上面的动作后，在状态列会出现如下的信息：
+
+```
+Renice PID 14836 to value 10   &lt;==这是 nice 值
+ PID USER      PR  NI    VIRT    RES    SHR S  %CPU %MEM     TIME+ COMMAND
+```
+
+接下来你就会看到如下的显示画面！
+
+```
+top - 01:04:13 up  6:17,  3 users,  load average: 0.00, 0.01, 0.05
+Tasks:   1 total,   0 running,   1 sleeping,   0 stopped,   0 zombie
+%Cpu（s）:  0.0 us,  0.0 sy,  0.0 ni,100.0 id,  0.0 wa,  0.0 hi,  0.0 si,  0.0 st
+KiB Mem :  2916388 total,  1838676 free,   354020 used,   723692 buff/cache
+KiB Swap:  1048572 total,  1048572 free,        0 used.  2318256 avail Mem
+
+ PID USER      PR  NI    VIRT    RES    SHR S  %CPU %MEM     TIME+ COMMAND
+14836 root      30  10  116272   3136   1848 S   0.0  0.1   0:00.07 bash
+```
+
+看到不同处了吧？底线的地方就是修改了之后所产生的效果！一般来说，如果鸟哥想要找出最损耗 CPU 资源的那个程序时，大多使用的就是 top 这支程序啦！然后强制以 CPU 使用资源来排序 （在 top 当中按下 P 即可）， 就可以很快的知道啦！ ^_^。多多爱用这个好用的东西喔！
+
+- pstree
+
+```
+[root@study ~]# pstree [-A&#124;U] [-up]
+选项与参数：
+-A  ：各程序树之间的连接以 ASCII 字符来连接；
+-U  ：各程序树之间的连接以万国码的字符来连接。在某些终端接口下可能会有错误；
+-p  ：并同时列出每个 process 的 PID；
+-u  ：并同时列出每个 process 的所属帐号名称。
+
+范例一：列出目前系统上面所有的程序树的相关性：
+[root@study ~]# pstree -A
+systemd-+-ModemManager---2*[{ModemManager}]       # 这行是 ModenManager 与其子程序
+        &#124;-NetworkManager---3*[{NetworkManager}]   # 前面有数字，代表子程序的数量！
+....（中间省略）....
+        &#124;-sshd---sshd---sshd---bash---bash---sudo---su---bash---pstree &lt;==我们指令执行的相依性
+....（下面省略）....
+# 注意一下，为了节省版面，所以鸟哥已经删去很多程序了！
+
+范例二：承上题，同时秀出 PID 与 users
+[root@study ~]# pstree -Aup
+systemd（1）-+-ModemManager（745）-+-{ModemManager}（785）
+           &#124;                   `-{ModemManager}（790）
+           &#124;-NetworkManager（870）-+-{NetworkManager}（907）
+           &#124;                     &#124;-{NetworkManager}（911）
+           &#124;                     `-{NetworkManager}（914）
+....（中间省略）....
+           &#124;-sshd（1326）---sshd（13923）---sshd（13927,dmtsai）---bash（13928）---bash（13970）---
+....（下面省略）....
+# 在括号 （） 内的即是 PID 以及该程序的 owner 喔！一般来说，如果该程序的所有人与父程序同，
+# 就不会列出，但是如果与父程序不一样，那就会列出该程序的拥有者！看上面 13927 就转变成 dmtsai 了
+```
+
+如果要找程序之间的相关性，这个 pstree 真是好用到不行！直接输入 pstree 可以查到程序相关性，如上表所示，还会使用线段将相关性程序链接起来哩！ 一般链接符号可以使用 ASCII 码即可，但有时因为语系问题会主动的以 Unicode 的符号来链接， 但因为可能终端机无法支持该编码，或许会造成乱码问题。因此可以加上 -A 选项来克服此类线段乱码问题。
+
+由 pstree 的输出我们也可以很清楚的知道，所有的程序都是依附在 systemd 这支程序下面的！ 仔细看一下，这支程序的 PID 是一号喔！因为他是由 Linux 核心所主动调用的第一支程序！所以 PID 就是一号了。 这也是我们刚刚提到[僵尸程序](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html#zombie)时有提到，为啥发生僵尸程序需要重新开机？ 因为 systemd 要重新启动，而重新启动 systemd 就是 reboot 啰！
+
+如果还想要知道 PID 与所属使用者，加上 -u 及 -p 两个参数即可。我们前面不是一直提到， 如果子程序挂点或者是老是砍不掉子程序时，该如何找到父程序吗？呵呵！用这个 pstree 就对了！ ^_^
+
+
 
 ### 16.3.2 程序的管理
 
@@ -329,24 +877,18 @@ nohup: ignoring input and appending output to 'nohup.out'
 - 发送`SIGHUP`信号，重新读取配置文件：
 
   ```
-  bash
-  复制代码
   kill -1 PID
   ```
-
+  
 - 强制终止进程：
 
   ```
-  bash
-  复制代码
   kill -9 PID
   ```
-
+  
 - 终止所有名为`httpd`的进程：
 
   ```
-  bash
-  复制代码
   killall -9 httpd
   ```
 
@@ -359,20 +901,85 @@ nohup: ignoring input and appending output to 'nohup.out'
 - 使用`nice`命令设置新进程的优先级：
 
   ```
-  bash
-  复制代码
   nice -n -5 command
   ```
-
+  
 - 使用`renice`命令调整已有进程的优先级：
 
   ```
-  bash
-  复制代码
   renice -5 PID
   ```
 
 一般用户只能调整自己的进程且不能降低优先级，而`root`用户可以调整所有进程的优先级。
+
+#### 原文：
+
+程序之间是可以互相控制的！举例来说，你可以关闭、重新启动服务器软件，服务器软件本身是个程序， 你既然可以让她关闭或启动，当然就是可以控制该程序啦！那么程序是如何互相管理的呢？其实是通过给予该程序一个讯号 （signal） 去告知该程序你想要让她作什么！因此这个讯号就很重要啦！
+
+我们也在本章之前的 [bash 工作管理](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html#background)当中提到过， 要给予某个已经存在背景中的工作某些动作时，是直接给予一个讯号给该工作号码即可。那么到底有多少 signal 呢？ 你可以使用 kill -l （小写的 L ） 或者是 man 7 signal 都可以查询到！主要的讯号代号与名称对应及内容是：
+
+| 代号 | 名称    | 内容                                                         |
+| ---- | ------- | ------------------------------------------------------------ |
+| 1    | SIGHUP  | 启动被终止的程序，可让该 PID 重新读取自己的配置文件，类似重新启动 |
+| 2    | SIGINT  | 相当于用键盘输入 [ctrl]-c 来中断一个程序的进行               |
+| 9    | SIGKILL | 代表强制中断一个程序的进行，如果该程序进行到一半， 那么尚未完成的部分可能会有“半产品”产生，类似 vim会有 .filename.swp 保留下来。 |
+| 15   | SIGTERM | 以正常的结束程序来终止该程序。由于是正常的终止， 所以后续的动作会将他完成。不过，如果该程序已经发生问题，就是无法使用正常的方法终止时， 输入这个 signal 也是没有用的。 |
+| 19   | SIGSTOP | 相当于用键盘输入 [ctrl]-z 来暂停一个程序的进行               |
+
+上面仅是常见的 signal 而已，更多的讯号信息请自行 man 7 signal 吧！一般来说，你只要记得“1, 9, 15”这三个号码的意义即可。那么我们如何传送一个讯号给某个程序呢？就通过 kill 或 killall 吧！下面分别来看看：
+
+- kill -signal PID
+
+kill 可以帮我们将这个 signal 传送给某个工作 （%jobnumber） 或者是某个 PID （直接输入数字）。 要再次强调的是： kill 后面直接加数字与加上 %number 的情况是不同的！ 这个很重要喔！因为工作控制中有 1 号工作，但是 PID 1 号则是专指“ systemd ”这支程序！你怎么可以将 systemd 关闭呢？ 关闭 systemd ，你的系统就当掉了啊！所以记得那个 % 是专门用在工作控制的喔！ 我们就活用一下 kill 与刚刚上面提到的 ps 来做个简单的练习吧！
+
+例题：以 ps 找出 rsyslogd 这个程序的 PID 后，再使用 kill 传送讯息，使得 rsyslogd 可以重新读取配置文件。答：由于需要重新读取配置文件，因此 signal 是 1 号。至于找出 rsyslogd 的 PID 可以是这样做：
+
+\> ps aux | grep 'rsyslogd' | grep -v 'grep'| awk '{print $2}'
+
+接下来则是实际使用 kill -1 PID，因此，整串指令会是这样：
+
+\> kill -SIGHUP $（ps aux | grep 'rsyslogd' | grep -v 'grep'| awk '{print $2}'）
+
+如果要确认有没有重新启动 syslog ，可以参考登录文件的内容，使用如下指令查阅：
+
+\> tail -5 /var/log/messages
+
+如果你有看到类似“Aug 5 01:25:02 study rsyslogd: [origin software="rsyslogd" swVersion="7.4.7" x-pid="742" x-info="[http://www.rsyslog.com](http://www.rsyslog.com/)"] rsyslogd was HUPed”之类的字样，就是表示 rsyslogd 在 8/5 有重新启动 （restart） 过了！
+
+了解了这个用法以后，如果未来你想要将某个莫名其妙的登陆者的连线删除的话，就可以通过使用 pstree -p 找到相关程序， 然后再以 kill -9 将该程序删除，该条连线就会被踢掉了！这样很简单吧！
+
+- killall -signal 指令名称
+
+由于 kill 后面必须要加上 PID （或者是 job number），所以，通常 kill 都会配合 [ps](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html#ps), [pstree](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html#pstree) 等指令，因为我们必须要找到相对应的那个程序的 ID 嘛！但是，如此一来，很麻烦～有没有可以利用“下达指令的名称”来给予讯号的？举例来说，能不能直接将 rsyslogd 这个程序给予一个 SIGHUP 的讯号呢？可以的！用 killall 吧！
+
+```
+[root@study ~]# killall [-iIe] [command name]
+选项与参数：
+-i  ：interactive 的意思，互动式的，若需要删除时，会出现提示字符给使用者；
+-e  ：exact 的意思，表示“后面接的 command name 要一致”，但整个完整的指令
+      不能超过 15 个字符。
+-I  ：指令名称（可能含参数）忽略大小写。
+
+范例一：给予 rsyslogd 这个指令启动的 PID 一个 SIGHUP 的讯号
+[root@study ~]# killall -1 rsyslogd
+# 如果用 ps aux 仔细看一下，若包含所有参数，则 /usr/sbin/rsyslogd -n 才是最完整的！
+
+范例二：强制终止所有以 httpd 启动的程序 （其实并没有此程序在系统内）
+[root@study ~]# killall -9 httpd
+
+范例三：依次询问每个 bash 程序是否需要被终止运行！
+[root@study ~]# killall -i -9 bash
+Signal bash（13888） ? （y/N） n &lt;==这个不杀！
+Signal bash（13928） ? （y/N） n &lt;==这个不杀！
+Signal bash（13970） ? （y/N） n &lt;==这个不杀！
+Signal bash（14836） ? （y/N） y &lt;==这个杀掉！
+# 具有互动的功能！可以询问你是否要删除 bash 这个程序。要注意，若没有 -i 的参数，
+# 所有的 bash 都会被这个 root 给杀掉！包括 root 自己的 bash 喔！ ^_^
+```
+
+总之，要删除某个程序，我们可以使用 PID 或者是启动该程序的指令名称， 而如果要删除某个服务呢？呵呵！最简单的方法就是利用 killall ， 因为他可以将系统当中所有以某个指令名称启动的程序全部删除。 举例来说，上面的范例二当中，系统内所有以 httpd 启动的程序，就会通通的被删除啦！ ^_^
+
+
 
 ### 16.3.3 系统资源的观察
 
@@ -385,8 +992,6 @@ nohup: ignoring input and appending output to 'nohup.out'
 - 以MB为单位显示内存使用情况：
 
   ```
-  bash
-  复制代码
   free -m
   ```
 
@@ -397,8 +1002,6 @@ nohup: ignoring input and appending output to 'nohup.out'
 - 显示所有系统信息：
 
   ```
-  bash
-  复制代码
   uname -a
   ```
 
@@ -409,8 +1012,6 @@ nohup: ignoring input and appending output to 'nohup.out'
 - 显示系统运行时间和平均负载：
 
   ```
-  bash
-  复制代码
   uptime
   ```
 
@@ -421,8 +1022,6 @@ nohup: ignoring input and appending output to 'nohup.out'
 - 显示所有网络连接和监听端口：
 
   ```
-  bash
-  复制代码
   netstat -tulnp
   ```
 
@@ -433,8 +1032,6 @@ nohup: ignoring input and appending output to 'nohup.out'
 - 显示内核消息：
 
   ```
-  bash
-  复制代码
   dmesg | more
   ```
 
@@ -445,12 +1042,487 @@ nohup: ignoring input and appending output to 'nohup.out'
 - 每秒显示一次系统资源使用情况，共显示三次：
 
   ```
-  bash
-  复制代码
   vmstat 1 3
   ```
 
 通过上述工具和方法，可以全面监控和管理系统中的进程和资源，确保系统的稳定运行。
+
+#### 原文：
+
+我们知道 Linux 是多用户多任务的环境，由 [top](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html#topm) 的输出结果我们也发现， 系统同时间有非常多的程序在运行中，只是绝大部分的程序都在休眠 （sleeping） 状态而已。 想一想，如果所有的程序同时被唤醒，那么 CPU 应该要先处理那个程序呢？也就是说，那个程序被执行的优先序比较高？ 这就得要考虑到程序的优先执行序 （Priority） 与 CPU 调度啰！
+
+![鸟哥的图示](image/vbird_face-17228279906262.gif)
+
+**Tips** CPU 调度与前一章的例行性工作调度并不一样。 CPU 调度指的是每支程序被 CPU 运行的演算规则， 而例行性工作调度则是将某支程序安排在某个时间再交由系统执行。 CPU 调度与操作系统较具有相关性！
+
+- Priority 与 Nice 值
+
+我们知道 CPU 一秒钟可以运行多达数 G 的微指令次数，通过核心的 CPU 调度可以让各程序被 CPU 所切换运行， 因此每个程序在一秒钟内或多或少都会被 CPU 执行部分的指令码。如果程序都是集中在一个伫列中等待 CPU 的运行， 而不具有优先顺序之分，也就是像我们去游乐场玩热门游戏需要排队一样，每个人都是照顺序来！ 你玩过一遍后还想再玩 （没有执行完毕），请到后面继续排队等待。情况有点像下面这样：
+
+![并没有优先顺序的程序伫列示意图](image/pri_cpu_no.gif)图16.3.1、并没有优先顺序的程序伫列示意图
+
+上图中假设 pro1, pro2 是紧急的程序， pro3, pro4 是一般的程序，在这样的环境中，由于不具有优先顺序， 唉啊！pro1, pro2 还是得要继续等待而没有优待呢！如果 pro3, pro4 的工作又臭又长！那么紧急的 pro1, pro2 就得要等待个老半天才能够完成！真麻烦啊！所以啰，我们想要将程序分优先顺序啦！如果优先序较高则运行次数可以较多次， 而不需要与较慢优先的程序抢位置！我们可以将程序的优先顺序与 CPU 调度进行如下图的解释：
+
+![具有优先顺序的程序伫列示意图](image/pri_cpu_yes.gif)图16.3.2、具有优先顺序的程序伫列示意图
+
+如上图所示，具高优先权的 pro1, pro2 可以被取用两次，而较不重要的 pro3, pro4 则运行次数较少。 如此一来 pro1, pro2 就可以较快被完成啦！要注意，上图仅是示意图，并非较优先者一定会被运行两次啦！ 为了要达到上述的功能，我们 Linux 给予程序一个所谓的“优先执行序 （priority, PRI）”， 这个 PRI 值越低代表越优先的意思。不过这个 PRI 值是由核心动态调整的， 使用者无法直接调整 PRI 值的。先来瞧瞧 PRI 曾在哪里出现？
+
+```
+[root@study ~]# ps -l
+F S   UID   PID  PPID  C PRI  NI ADDR SZ WCHAN  TTY          TIME CMD
+4 S     0 14836 14835  0  90  10 - 29068 wait   pts/0    00:00:00 bash
+0 R     0 19848 14836  0  90  10 - 30319 -      pts/0    00:00:00 ps
+# 你应该要好奇，怎么我的 NI 已经是 10 了？还记得刚刚 top 的测试吗？我们在那边就有改过一次喔！
+```
+
+由于 PRI 是核心动态调整的，我们使用者也无权去干涉 PRI ！那如果你想要调整程序的优先执行序时，就得要通过 Nice 值了！Nice 值就是上表的 NI 啦！一般来说， PRI 与 NI 的相关性如下：
+
+> PRI（new） = PRI（old） + nice
+
+不过你要特别留意到，如果原本的 PRI 是 50 ，并不是我们给予一个 nice = 5 ，就会让 PRI 变成 55 喔！ 因为 PRI 是系统“动态”决定的，所以，虽然 nice 值是可以影响 PRI ，不过， 最终的 PRI 仍是要经过系统分析后才会决定的。另外， nice 值是有正负的喔，而既然 PRI 越小越早被执行， 所以，当 nice 值为负值时，那么该程序就会降低 PRI 值，亦即会变的较优先被处理。此外，你必须要留意到：
+
+- nice 值可调整的范围为 -20 ~ 19 ；
+- root 可随意调整自己或他人程序的 Nice 值，且范围为 -20 ~ 19 ；
+- 一般使用者仅可调整自己程序的 Nice 值，且范围仅为 0 ~ 19 （避免一般用户抢占系统资源）；
+- 一般使用者仅可将 nice 值越调越高，例如本来 nice 为 5 ，则未来仅能调整到大于 5；
+
+这也就是说，要调整某个程序的优先执行序，就是“调整该程序的 nice 值”啦！那么如何给予某个程序 nice 值呢？有两种方式，分别是：
+
+- 一开始执行程序就立即给予一个特定的 nice 值：用 nice 指令；
+- 调整某个已经存在的 PID 的 nice 值：用 renice 指令。
+- nice ：新执行的指令即给予新的 nice 值
+
+```
+[root@study ~]# nice [-n 数字] command
+选项与参数：
+-n  ：后面接一个数值，数值的范围 -20 ~ 19。
+
+范例一：用 root 给一个 nice 值为 -5 ，用于执行 vim ，并观察该程序！
+[root@study ~]# nice -n -5 vim &
+[1] 19865
+[root@study ~]# ps -l
+F S   UID   PID  PPID  C PRI  NI ADDR SZ WCHAN  TTY          TIME CMD
+4 S     0 14836 14835  0  90  10 - 29068 wait   pts/0    00:00:00 bash
+4 T     0 19865 14836  0  85   5 - 37757 signal pts/0    00:00:00 vim
+0 R     0 19866 14836  0  90  10 - 30319 -      pts/0    00:00:00 ps
+# 原本的 bash PRI 为 90  ，所以 vim 默认应为 90。不过由于给予 nice  为 -5 ，
+# 因此 vim 的 PRI 降低了！RPI 与 NI 各减 5 ！但不一定每次都是正好相同喔！因为核心会动态调整
+
+[root@study ~]# kill -9 %1 &lt;==测试完毕将 vim 关闭
+```
+
+就如同前面说的， nice 是用来调整程序的执行优先顺序！这里只是一个执行的范例罢了！ 通常什么时候要将 nice 值调大呢？举例来说，系统的背景工作中， 某些比较不重要的程序之进行：例如备份工作！由于备份工作相当的耗系统资源， 这个时候就可以将备份的指令之 nice 值调大一些，可以使系统的资源分配的更为公平！
+
+- renice ：已存在程序的 nice 重新调整
+
+```
+[root@study ~]# renice [number] PID
+选项与参数：
+PID ：某个程序的 ID 啊！
+
+范例一：找出自己的 bash PID ，并将该 PID 的 nice 调整到 -5
+[root@study ~]# ps -l
+F S   UID   PID  PPID  C PRI  NI ADDR SZ WCHAN  TTY          TIME CMD
+4 S     0 14836 14835  0  90  10 - 29068 wait   pts/0    00:00:00 bash
+0 R     0 19900 14836  0  90  10 - 30319 -      pts/0    00:00:00 ps
+
+[root@study ~]# renice -5 14836
+14836 （process ID） old priority 10, new priority -5
+
+[root@study ~]# ps -l
+F S   UID   PID  PPID  C PRI  NI ADDR SZ WCHAN  TTY          TIME CMD
+4 S     0 14836 14835  0  75  -5 - 29068 wait   pts/0    00:00:00 bash
+0 R     0 19910 14836  0  75  -5 - 30319 -      pts/0    00:00:00 ps
+```
+
+如果要调整的是已经存在的某个程序的话，那么就得要使用 renice 了。使用的方法很简单， renice 后面接上数值及 PID 即可。因为后面接的是 PID ，所以你务必要以 ps 或者其他程序观察的指令去找出 PID 才行啊！
+
+由上面这个范例当中我们也看的出来，虽然修改的是 bash 那个程序，但是该程序所触发的 ps 指令当中的 nice 也会继承而为 -5 喔！了解了吧！整个 nice 值是可以在父程序 --> 子程序之间传递的呢！ 另外，除了 renice 之外，其实那个 [top](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html#topm) 同样的也是可以调整 nice 值的！
+
+
+
+## 16.3.4 系统资源的观察
+
+除了系统程序外，我们还需要检查系统的资源使用情况。例如，我们可以使用 `top` 命令查看许多系统资源。除此之外，还有其他工具可以使用。以下是一些常见的工具命令。
+
+### free：观察内存使用情况
+
+`free` 命令用于查看系统内存的使用情况。常用选项和参数如下：
+
+```
+bash
+复制代码
+[root@study ~]# free [-b|-k|-m|-g|-h] [-t] [-s N -c N]
+```
+
+- `-b`：显示单位为 Bytes，可以使用 `b`（Bytes）, `m`（MBytes）, `k`（KBytes）, `g`（GBytes） 来指定显示单位，也可以使用 `-h` 让系统自动选择单位。
+- `-t`：在输出的最终结果中显示物理内存和交换空间的总量。
+- `-s`：每隔几秒钟输出一次，持续输出，适用于系统监控。
+- `-c`：与 `-s` 一起使用，指定输出的次数。
+
+#### 范例一：显示当前系统的内存容量
+
+```
+bash复制代码[root@study ~]# free -m
+              total        used        free      shared  buff/cache   available
+Mem:           2848         346        1794           8         706        2263
+Swap:          1023           0        1023
+```
+
+- `total` 是总量，`used` 是已使用的量，`free` 是剩余可用的量。
+- `shared/buffers/cached` 是已使用量中的缓冲和高速缓存的量，在系统忙碌时可以被释放继续利用。
+- `available` 表示可用的内存量。
+
+### uname：查阅系统与核心相关信息
+
+`uname` 命令用于显示系统和核心相关信息。常用选项和参数如下：
+
+```
+bash
+复制代码
+[root@study ~]# uname [-asrmpi]
+```
+
+- `-a`：显示所有系统相关信息。
+- `-s`：系统核心名称。
+- `-r`：核心版本。
+- `-m`：系统的硬件名称。
+- `-p`：CPU 类型。
+- `-i`：硬件平台。
+
+#### 范例一：输出系统的基本信息
+
+```
+bash复制代码[root@study ~]# uname -a
+Linux study.centos.vbird 3.10.0-229.el7.x86_64 #1 SMP Fri Mar 6 11:36:42 UTC 2015 x86_64 x86_64 x86_64 GNU/Linux
+```
+
+### uptime：观察系统启动时间与工作负载
+
+`uptime` 命令显示系统启动时间和工作负载。该命令输出的信息包括系统启动时间、当前登录用户数和 1, 5, 15 分钟的平均负载。
+
+```
+[root@study ~]# uptime
+ 02:35:27 up  7:48,  3 users,  load average: 0.00, 0.01, 0.05
+```
+
+### netstat：追踪网络或插槽文件
+
+`netstat` 命令用于网络监控和系统程序相关性检查。常用选项和参数如下：
+
+```
+[root@study ~]# netstat -[atunlp]
+```
+
+- `-a`：列出所有的连线、监听、Socket 数据。
+- `-t`：列出 TCP 网络封包的数据。
+- `-u`：列出 UDP 网络封包的数据。
+- `-n`：以端口号而不是程序服务名称显示。
+- `-l`：列出当前正在监听的服务。
+- `-p`：列出网络服务的程序 PID。
+
+#### 范例一：列出当前系统已建立的网络连线和 UNIX socket 状态
+
+```
+[root@study ~]# netstat
+Active Internet connections (w/o servers)
+Proto Recv-Q Send-Q Local Address           Foreign Address         State
+tcp        0      0 172.16.15.100:ssh       172.16.220.234:48300    ESTABLISHED
+
+Active UNIX domain sockets (w/o servers)
+Proto RefCnt Flags       Type       State         I-Node   Path
+unix  2      [ ]         DGRAM                    1902     @/org/freedesktop/systemd1/notify
+unix  2      [ ]         DGRAM                    1944     /run/systemd/shutdownd
+```
+
+#### 范例二：找出当前系统上正在监听的网络连线及其 PID
+
+```
+[root@study ~]# netstat -tulnp
+Active Internet connections (only servers)
+Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name
+tcp        0      0 0.0.0.0:22              0.0.0.0:*               LISTEN      1326/sshd
+tcp        0      0 127.0.0.1:25            0.0.0.0:*               LISTEN      2349/master
+tcp6       0      0 :::22                   :::*                    LISTEN      1326/sshd
+tcp6       0      0 ::1:25                  :::*                    LISTEN      2349/master
+udp        0      0 0.0.0.0:123             0.0.0.0:*                           751/chronyd
+udp        0      0 127.0.0.1:323           0.0.0.0:*                           751/chronyd
+udp        0      0 0.0.0.0:57808           0.0.0.0:*                           743/avahi-daemon: r
+udp        0      0 0.0.0.0:5353            0.0.0.0:*                           743/avahi-daemon: r
+udp6       0      0 :::123                  :::*                                751/chronyd
+udp6       0      0 ::1:323                 :::*                                751/chronyd
+```
+
+#### 范例三：关闭指定网络服务
+
+```
+[root@study ~]# kill -9 743
+[root@study ~]# killall -9 avahi-daemon
+```
+
+### dmesg：分析核心产生的信息
+
+`dmesg` 命令用于查看系统启动时核心侦测到的硬件信息。
+
+#### 范例一：输出所有的核心启动时信息
+
+```
+[root@study ~]# dmesg | more
+```
+
+#### 范例二：搜索启动时硬盘的相关信息
+
+```
+[root@study ~]# dmesg | grep -i vda
+[    0.758551]  vda: vda1 vda2 vda3 vda4 vda5 vda6 vda7 vda8 vda9
+[    3.964134] XFS (vda2): Mounting V4 Filesystem
+```
+
+### vmstat：监测系统资源变化
+
+`vmstat` 命令用于动态监测系统资源的运行情况。常用选项和参数如下：
+
+```
+[root@study ~]# vmstat [-a] [延迟 [总计侦测次数]]
+[root@study ~]# vmstat [-fs]
+[root@study ~]# vmstat [-S 单位]
+[root@study ~]# vmstat [-d]
+[root@study ~]# vmstat [-p 分区]
+```
+
+- `-a`：使用 inactive/active 内存信息代替 buffer/cache。
+- `-f`：显示系统开机到目前为止复制的程序数。
+- `-s`：列出一些事件导致的内存变化情况。
+- `-S`：设置显示数据的单位。
+- `-d`：列出磁盘的读写总量统计。
+- `-p`：显示指定分区的读写总量统计。
+
+#### 范例一：统计当前主机 CPU 状态，每秒一次，共计三次
+
+```
+[root@study ~]# vmstat 1 3
+procs ------------memory---------- ---swap-- -----io---- -system-- ------cpu-----
+ r  b   swpd    free   buff  cache   si   so    bi    bo   in   cs us sy id wa st
+ 1  0      0 1838092   1504 722216    0    0     4     1    6    9  0  0 100  0  0
+ 0  0      0 1838092   1504 722200    0    0     0     0   13   23  0  0 100  0  0
+ 0  0      0 1838092   1504 722200    0    0     0     0   25   46  0  0 100  0  0
+```
+
+#### 原文：
+
+除了系统的程序之外，我们还必须就系统的一些资源进行检查啊！举例来说，我们使用 top 可以看到很多系统的资源对吧！那么，还有没有其他的工具可以查阅的？ 当然有啊！下面这些工具指令可以玩一玩！
+
+- free ：观察内存使用情况
+
+```
+[root@study ~]# free [-b&#124;-k&#124;-m&#124;-g&#124;-h] [-t] [-s N -c N]
+选项与参数：
+-b  ：直接输入 free 时，显示的单位是 KBytes，我们可以使用 b（Bytes）, m（MBytes）
+      k（KBytes）, 及 g（GBytes） 来显示单位喔！也可以直接让系统自己指定单位 （-h）
+-t  ：在输出的最终结果，显示实体内存与 swap 的总量。
+-s  ：可以让系统每几秒钟输出一次，不间断的一直输出的意思！对于系统观察挺有效！
+-c  ：与 -s 同时处理～让 free 列出几次的意思～
+
+范例一：显示目前系统的内存容量
+[root@study ~]# free -m
+              total        used        free      shared  buff/cache   available
+Mem:           2848         346        1794           8         706        2263
+Swap:          1023           0        1023
+```
+
+仔细看看，我的系统当中有 2848MB 左右的实体内存，我的 swap 有 1GB 左右， 那我使用 free -m 以 MBytes 来显示时，就会出现上面的信息。Mem 那一行显示的是实体内存的量， Swap 则是内存交换空间的量。 total 是总量， used 是已被使用的量， free 则是剩余可用的量。 后面的 shared/buffers/cached 则是在已被使用的量当中，用来作为缓冲及高速缓存的量，这些 shared/buffers/cached 的用量中，在系统比较忙碌时， 可以被释出而继续利用！因此后面就有一个 available （可用的） 数值！ 。
+
+请看上头范例一的输出，我们可以发现这部测试机根本没有什么特别的服务，但是竟然有 706MB 左右的 cache 耶！ 因为鸟哥在测试过程中还是有读/写/执行很多的文件嘛！这些文件就会被系统暂时高速缓存下来，等待下次运行时可以更快速的取出之意！ 也就是说，系统是“很有效率的将所有的内存用光光”，目的是为了让系统的存取性能加速啦！
+
+很多朋友都会问到这个问题“我的系统明明很轻松，为何内存会被用光光？”现在瞭了吧？ 被用光是正常的！而需要注意的反而是 swap 的量。一般来说， swap 最好不要被使用，尤其 swap 最好不要被使用超过 20% 以上， 如果您发现 swap 的用量超过 20% ，那么，最好还是买实体内存来插吧！ 因为， Swap 的性能跟实体内存实在差很多，而系统会使用到 swap ， 绝对是因为实体内存不足了才会这样做的！如此，了解吧！
+
+![鸟哥的图示](image/vbird_face-17228281124786.gif)
+
+**Tips** Linux 系统为了要加速系统性能，所以会将最常使用到的或者是最近使用到的文件数据高速缓存 （cache） 下来， 这样未来系统要使用该文件时，就直接由内存中搜寻取出，而不需要重新读取硬盘，速度上面当然就加快了！ 因此，实体内存被用光是正常的喔！
+
+- uname：查阅系统与核心相关信息
+
+```
+[root@study ~]# uname [-asrmpi]
+选项与参数：
+-a  ：所有系统相关的信息，包括下面的数据都会被列出来；
+-s  ：系统核心名称
+-r  ：核心的版本
+-m  ：本系统的硬件名称，例如 i686 或 x86_64 等；
+-p  ：CPU 的类型，与 -m 类似，只是显示的是 CPU 的类型！
+-i  ：硬件的平台 （ix86）
+
+范例一：输出系统的基本信息
+[root@study ~]# uname -a
+Linux study.centos.vbird 3.10.0-229.el7.x86_64 #1 SMP Fri Mar 6 11:36:42 UTC 2015
+x86_64 x86_64 x86_64 GNU/Linux
+```
+
+这个咚咚我们前面使用过很多次了喔！uname 可以列出目前系统的核心版本、 主要硬件平台以及 CPU 类型等等的信息。以上面范例一的状态来说，我的 Linux 主机使用的核心名称为 Linux，而主机名称为 study.centos.vbird，核心的版本为 3.10.0-229.el7.x86_64 ，该核心版本创建的日期为 2015-3-6，适用的硬件平台为 x86_64 以上等级的硬件平台喔。
+
+- uptime：观察系统启动时间与工作负载
+
+这个指令很单纯呢！就是显示出目前系统已经开机多久的时间，以及 1, 5, 15 分钟的平均负载就是了。还记得 [top](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html#topm) 吧？没错啦！这个 uptime 可以显示出 top 画面的最上面一行！
+
+```
+[root@study ~]# uptime
+ 02:35:27 up  7:48,  3 users,  load average: 0.00, 0.01, 0.05
+# [top](../Text/index.html#topm) 这个指令已经谈过相关信息，不再聊！
+```
+
+- netstat ：追踪网络或插槽档
+
+这个 netstat 也是挺好玩的，其实这个指令比较常被用在网络的监控方面，不过，在程序管理方面也是需要了解的啦！ 这个指令的执行如下所示：基本上， netstat 的输出分为两大部分，分别是网络与系统自己的程序相关性部分：
+
+```
+[root@study ~]# netstat -[atunlp]
+选项与参数：
+-a  ：将目前系统上所有的连线、监听、Socket 数据都列出来
+-t  ：列出 tcp 网络封包的数据
+-u  ：列出 udp 网络封包的数据
+-n  ：不以程序的服务名称，以埠号 （port number） 来显示；
+-l  ：列出目前正在网络监听 （listen） 的服务；
+-p  ：列出该网络服务的程序 PID
+
+范例一：列出目前系统已经创建的网络连线与 unix socket 状态
+[root@study ~]# netstat
+Active Internet connections （w/o servers） &lt;==与网络较相关的部分
+Proto Recv-Q Send-Q Local Address           Foreign Address         State
+tcp        0      0 172.16.15.100:ssh       172.16.220.234:48300    ESTABLISHED
+Active UNIX domain sockets （w/o servers）  &lt;==与本机的程序自己的相关性（非网络）
+Proto RefCnt Flags       Type       State         I-Node   Path
+unix  2      [ ]         DGRAM                    1902     @/org/freedesktop/systemd1/notify
+unix  2      [ ]         DGRAM                    1944     /run/systemd/shutdownd
+....（中间省略）....
+unix  3      [ ]         STREAM     CONNECTED     25425    @/tmp/.X11-unix/X0
+unix  3      [ ]         STREAM     CONNECTED     28893
+unix  3      [ ]         STREAM     CONNECTED     21262
+```
+
+在上面的结果当中，显示了两个部分，分别是网络的连线以及 linux 上面的 socket 程序相关性部分。 我们先来看看网际网络连线情况的部分：
+
+- Proto ：网络的封包协定，主要分为 TCP 与 UDP 封包，相关数据请参考[服务器篇](http://linux.vbird.org/linux_server)；
+- Recv-Q：非由使用者程序链接到此 socket 的复制的总 Bytes 数；
+- Send-Q：非由远端主机传送过来的 acknowledged 总 Bytes 数；
+- Local Address ：本地端的 IP:port 情况
+- Foreign Address：远端主机的 IP:port 情况
+- State ：连线状态，主要有创建（ESTABLISED）及监听（LISTEN）；
+
+我们看上面仅有一条连线的数据，他的意义是：“通过 TCP 封包的连线，远端的 172.16.220.234:48300 连线到本地端的 172.16.15.100:ssh ，这条连线状态是创建 （ESTABLISHED） 的状态！”至于更多的网络环境说明， 就得到[鸟哥的另一本服务器篇](http://linux.vbird.org/linux_server)查阅啰！
+
+除了网络上的连线之外，其实 Linux 系统上面的程序是可以接收不同程序所发送来的信息，那就是 Linux 上头的插槽档 （socket file）。我们在[第五章的文件种类](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html#filepermission_type)有稍微提到 socket 文件， 但当时未谈到程序的概念，所以没有深入谈论。socket file 可以沟通两个程序之间的信息，因此程序可以取得对方传送过来的数据。 由于有 socket file，因此类似 X Window 这种需要通过网络连接的软件，目前新版的 distributions 就以 socket 来进行窗口接口的连线沟通了。上表中 socket file 的输出字段有：
+
+- Proto ：一般就是 unix 啦；
+- RefCnt：连接到此 socket 的程序数量；
+- Flags ：连线的旗标；
+- Type ：socket 存取的类型。主要有确认连线的 STREAM 与不需确认的 DGRAM 两种；
+- State ：若为 CONNECTED 表示多个程序之间已经连线创建。
+- Path ：连接到此 socket 的相关程序的路径！或者是相关数据输出的路径。
+
+以上表的输出为例，最后那三行在 /tmp/.xx 下面的数据，就是 X Window 窗口接口的相关程序啦！ 而 PATH 指向的就是这些程序要交换数据的插槽文件啰！好！那么 netstat 可以帮我们进行什么任务呢？ 很多喔！我们先来看看，利用 netstat 去看看我们的哪些程序有启动哪些网络的“后门”呢？
+
+```
+范例二：找出目前系统上已在监听的网络连线及其 PID
+[root@study ~]# netstat -tulnp
+Active Internet connections （only servers）
+Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name
+tcp        0      0 0.0.0.0:22              0.0.0.0:*               LISTEN      1326/sshd
+tcp        0      0 127.0.0.1:25            0.0.0.0:*               LISTEN      2349/master
+tcp6       0      0 :::22                   :::*                    LISTEN      1326/sshd
+tcp6       0      0 ::1:25                  :::*                    LISTEN      2349/master
+udp        0      0 0.0.0.0:123             0.0.0.0:*                           751/chronyd
+udp        0      0 127.0.0.1:323           0.0.0.0:*                           751/chronyd
+udp        0      0 0.0.0.0:57808           0.0.0.0:*                           743/avahi-daemon: r
+udp        0      0 0.0.0.0:5353            0.0.0.0:*                           743/avahi-daemon: r
+udp6       0      0 :::123                  :::*                                751/chronyd
+udp6       0      0 ::1:323                 :::*                                751/chronyd
+# 除了可以列出监听网络的接口与状态之外，最后一个字段还能够显示此服务的
+# PID 号码以及程序的指令名称喔！例如上头的 1326 就是该 PID
+
+范例三：将上述的 0.0.0.0:57808 那个网络服务关闭的话？
+[root@study ~]# kill -9 743
+[root@study ~]# killall -9 avahi-daemon
+```
+
+很多朋友常常有疑问，那就是，我的主机目前到底开了几个门（ports）！其实，不论主机提供什么样的服务， 一定必须要有相对应的 program 在主机上面执行才行啊！举例来说，我们鸟园的 Linux 主机提供的就是 WWW 服务，那么我的主机当然有一个程序在提供 WWW 的服务啊！那就是 Apache 这个软件所提供的啦！ ^_^。 所以，当我执行了这个程序之后，我的系统自然就可以提供 WWW 的服务了。那如何关闭啊？ 就关掉该程序所触发的那个程序就好了！例如上面的范例三所提供的例子啊！不过，这个是非正规的作法喔！ 正规的作法，请查阅下一章的说明呦！
+
+- dmesg ：分析核心产生的讯息
+
+系统在开机的时候，核心会去侦测系统的硬件，你的某些硬件到底有没有被捉到，那就与这个时候的侦测有关。 但是这些侦测的过程要不是没有显示在屏幕上，就是很飞快的在屏幕上一闪而逝！能不能把核心侦测的讯息捉出来瞧瞧？ 可以的，那就使用 dmesg 吧！
+
+所有核心侦测的讯息，不管是开机时候还是系统运行过程中，反正只要是核心产生的讯息，都会被记录到内存中的某个保护区段。 dmesg 这个指令就能够将该区段的讯息读出来的！因为讯息实在太多了，所以执行时可以加入这个管线指令“ | more ”来使画面暂停！
+
+```
+范例一：输出所有的核心开机时的信息
+[root@study ~]# dmesg &#124; more
+
+范例二：搜寻开机的时候，硬盘的相关信息为何？
+[root@study ~]# dmesg &#124; grep -i vda
+[    0.758551]  vda: vda1 vda2 vda3 vda4 vda5 vda6 vda7 vda8 vda9
+[    3.964134] XFS （vda2）: Mounting V4 Filesystem
+....（下面省略）....
+```
+
+由范例二就知道我这部主机的硬盘的格式是什么了吧！
+
+- vmstat ：侦测系统资源变化
+
+如果你想要动态的了解一下系统资源的运行，那么这个 vmstat 确实可以玩一玩！vmstat 可以侦测“ CPU / 内存 / 磁盘输入输出状态 ”等等，如果你想要了解一部繁忙的系统到底是哪个环节最累人， 可以使用 vmstat 分析看看。下面是常见的选项与参数说明：
+
+```
+[root@study ~]# vmstat [-a] [延迟 [总计侦测次数]] &lt;==CPU/内存等信息
+[root@study ~]# vmstat [-fs]                      &lt;==内存相关
+[root@study ~]# vmstat [-S 单位]                  &lt;==设置显示数据的单位
+[root@study ~]# vmstat [-d]                       &lt;==与磁盘有关
+[root@study ~]# vmstat [-p 分区]                &lt;==与磁盘有关
+选项与参数：
+-a  ：使用 inactive/active（活跃与否） 取代 buffer/cache 的内存输出信息；
+-f  ：开机到目前为止，系统复制 （fork） 的程序数；
+-s  ：将一些事件 （开机至目前为止） 导致的内存变化情况列表说明；
+-S  ：后面可以接单位，让显示的数据有单位。例如 K/M 取代 Bytes 的容量；
+-d  ：列出磁盘的读写总量统计表
+-p  ：后面列出分区，可显示该分区的读写总量统计表
+
+范例一：统计目前主机 CPU 状态，每秒一次，共计三次！
+[root@study ~]# vmstat 1 3
+procs ------------memory---------- ---swap-- -----io---- -system-- ------cpu-----
+ r  b   swpd    free   buff  cache   si   so    bi    bo   in   cs us sy id wa st
+ 1  0      0 1838092   1504 722216    0    0     4     1    6    9  0  0 100  0  0
+ 0  0      0 1838092   1504 722200    0    0     0     0   13   23  0  0 100  0  0
+ 0  0      0 1838092   1504 722200    0    0     0     0   25   46  0  0 100  0  0
+```
+
+利用 vmstat 甚至可以进行追踪喔！你可以使用类似“ vmstat 5 ”代表每五秒钟更新一次，且无穷的更新！直到你按下 [ctrl]-c 为止。如果你想要实时的知道系统资源的运行状态，这个指令就不能不知道！那么上面的表格各项字段的意义为何？ 基本说明如下：
+
+- 程序字段 （procs） 的项目分别为： r ：等待运行中的程序数量；b：不可被唤醒的程序数量。这两个项目越多，代表系统越忙碌 （因为系统太忙，所以很多程序就无法被执行或一直在等待而无法被唤醒之故）。
+- 内存字段 （memory） 项目分别为： swpd：虚拟内存被使用的容量； free：未被使用的内存容量； buff：用于缓冲内存； cache：用于高速缓存内存。 这部份则与 [free](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html#free) 是相同的。
+- 内存交换空间 （swap） 的项目分别为： si：由磁盘中将程序取出的量； so：由于内存不足而将没用到的程序写入到磁盘的 swap 的容量。 如果 si/so 的数值太大，表示内存内的数据常常得在磁盘与内存之间传来传去，系统性能会很差！
+- 磁盘读写 （io） 的项目分别为： bi：由磁盘读入的区块数量； bo：写入到磁盘去的区块数量。如果这部份的值越高，代表系统的 I/O 非常忙碌！
+- 系统 （system） 的项目分别为： in：每秒被中断的程序次数； cs：每秒钟进行的事件切换次数；这两个数值越大，代表系统与周边设备的沟通非常频繁！ 这些周边设备当然包括磁盘、网卡、时间钟等。
+- CPU 的项目分别为： us：非核心层的 CPU 使用状态； sy：核心层所使用的 CPU 状态； id：闲置的状态； wa：等待 I/O 所耗费的 CPU 状态； st：被虚拟机 （virtual machine） 所盗用的 CPU 使用状态 （2.6.11 以后才支持）。
+
+由于鸟哥的机器是测试机，所以并没有什么 I/O 或者是 CPU 忙碌的情况。如果改天你的服务器非常忙碌时， 记得使用 vmstat 去看看，到底是哪个部分的资源被使用的最为频繁！一般来说，如果 I/O 部分很忙碌的话，你的系统会变的非常慢！ 让我们再来看看，那么磁盘的部分该如何观察：
+
+```
+范例二：系统上面所有的磁盘的读写状态
+[root@study ~]# vmstat -d
+disk- ------------reads------------ ------------writes----------- -----IO------
+       total merged sectors      ms  total merged sectors      ms    cur    sec
+vda    21928      0  992587   47490   7239   2225  258449   13331      0     26
+sda      395      1    3168     213      0      0       0       0      0      0
+sr0        0      0       0       0      0      0       0       0      0      0
+dm-0   19139      0  949575   44608   7672      0  202251   16264      0     25
+dm-1     336      0    2688     327      0      0       0       0      0      0
+md0      212      0    1221       0     14      0    4306       0      0      0
+dm-2     218      0    9922     565     54      0    4672     128      0      0
+dm-3     179      0     957     182     11      0    4306      68      0      0
+```
+
+详细的各字段就请诸位大德查阅一下 man vmstat 啰！反正与读写有关啦！这样了解乎！
+
+
+
+
 
 ## 16.4 特殊文件与程序
 
@@ -470,10 +1542,42 @@ SUID权限使得执行者在执行程序时，获得程序拥有者的权限。�
 我们可以使用以下命令查找系统中的SUID/SGID文件：
 
 ```
-bash
-复制代码
 find / -perm /6000
 ```
+
+#### 原文：
+
+SUID 的权限其实与程序的相关性非常的大！为什么呢？先来看看 SUID 的程序是如何被一般使用者执行，且具有什么特色呢？
+
+- SUID 权限仅对二进制程序（binary program）有效；
+- 执行者对于该程序需要具有 x 的可执行权限；
+- 本权限仅在执行该程序的过程中有效 （run-time）；
+- 执行者将具有该程序拥有者 （owner） 的权限。
+
+所以说，整个 SUID 的权限会生效是由于“具有该权限的程序被触发”，而我们知道一个程序被触发会变成程序， 所以啰，执行者可以具有程序拥有者的权限就是在该程序变成程序的那个时候啦！第六章我们还没谈到程序的概念， 所以你或许那时候会觉得很奇怪，为啥执行了 passwd 后你就具有 root 的权限呢？不都是一般使用者执行的吗？ 这是因为你在触发 passwd 后，会取得一个新的程序与 PID，该 PID 产生时通过 SUID 来给予该 PID 特殊的权限设置啦！ 我们使用 dmtsai 登陆系统且执行 passwd 后，通过[工作控制](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html#background)来理解一下！
+
+```
+[dmtsai@study ~]$ passwd
+Changing password for user dmtsai.
+Changing password for dmtsai
+（current） UNIX password: &lt;==这里按下 [ctrl]-z 并且按下 [enter]
+[1]+  Stopped                 passwd
+
+[dmtsai@study ~]$ pstree -uA
+systemd-+-ModemManager---2*[{ModemManager}]
+....（中间省略）....
+        &#124;-sshd---sshd---sshd（dmtsai）---bash-+-passwd（root）
+        &#124;                                   `-pstree
+....（下面省略）....
+```
+
+从上表的结果我们可以发现，底线的部分是属于 dmtsai 这个一般帐号的权限，特殊字体的则是 root 的权限！ 但你看到了， passwd 确实是由 bash 衍生出来的！不过就是权限不一样！通过这样的解析， 你也会比较清楚为何不同程序所产生的权限不同了吧！这是由于“SUID 程序运行过程中产生的程序”的关系啦！
+
+那么既然 SUID/SGID 的权限是比较可怕的，您该如何查询整个系统的 SUID/SGID 的文件呢？ 应该是还不会忘记吧？使用 [find](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html#find) 即可啊！
+
+> find / -perm /6000
+
+
 
 ### 16.4.2 /proc/* 代表的意义
 
@@ -482,8 +1586,6 @@ find / -perm /6000
 例如，查看PID为1（systemd）的程序信息：
 
 ```
-bash
-复制代码
 ls /proc/1
 ```
 
@@ -500,6 +1602,75 @@ ls /proc/1
 - /proc/loadavg：系统负载平均值。
 - /proc/uptime：系统运行时间。
 
+#### 原文：
+
+其实，我们之前提到的所谓的程序都是在内存当中嘛！而内存当中的数据又都是写入到 /proc/* 这个目录下的，所以啰，我们当然可以直接观察 /proc 这个目录当中的文件啊！ 如果你观察过 /proc 这个目录的话，应该会发现他有点像这样：
+
+```
+[root@study ~]# ll /proc
+dr-xr-xr-x.  8 root           root               0 Aug  4 18:46 1
+dr-xr-xr-x.  8 root           root               0 Aug  4 18:46 10
+dr-xr-xr-x.  8 root           root               0 Aug  4 18:47 10548
+....（中间省略）....
+-r--r--r--.  1 root           root               0 Aug  5 17:48 uptime
+-r--r--r--.  1 root           root               0 Aug  5 17:48 version
+-r--------.  1 root           root               0 Aug  5 17:48 vmallocinfo
+-r--r--r--.  1 root           root               0 Aug  5 17:48 vmstat
+-r--r--r--.  1 root           root               0 Aug  5 17:48 zoneinfo
+```
+
+基本上，目前主机上面的各个程序的 PID 都是以目录的型态存在于 /proc 当中。 举例来说，我们开机所执行的第一支程序 systemd 他的 PID 是 1 ， 这个 PID 的所有相关信息都写入在 /proc/1/* 当中！若我们直接观察 PID 为 1 的数据好了，他有点像这样：
+
+```
+[root@study ~]# ll /proc/1
+dr-xr-xr-x. 2 root root 0 Aug  4 19:25 attr
+-rw-r--r--. 1 root root 0 Aug  4 19:25 autogroup
+-r--------. 1 root root 0 Aug  4 19:25 auxv
+-r--r--r--. 1 root root 0 Aug  4 18:46 cgroup
+--w-------. 1 root root 0 Aug  4 19:25 clear_refs
+-r--r--r--. 1 root root 0 Aug  4 18:46 cmdline  &lt;==就是指令串
+-r--------. 1 root root 0 Aug  4 18:46 environ  &lt;==一些环境变量
+lrwxrwxrwx. 1 root root 0 Aug  4 18:46 exe
+....（以下省略）....
+```
+
+里面的数据还挺多的，不过，比较有趣的其实是两个文件，分别是：
+
+- cmdline：这个程序被启动的指令串；
+- environ：这个程序的环境变量内容。
+
+很有趣吧！如果你查阅一下 cmdline 的话，就会发现：
+
+```
+[root@study ~]# cat /proc/1/cmdline
+/usr/lib/systemd/systemd--switched-root--system--deserialize24
+```
+
+就是这个指令、选项与参数启动 systemd 的啦！这还是跟某个特定的 PID 有关的内容呢，如果是针对整个 Linux 系统相关的参数呢？那就是在 /proc 目录下面的文件啦！相关的文件与对应的内容是这样的： [[3\]](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/content/142.html#ps3)
+
+| 文件名            | 文件内容                                                     |
+| ----------------- | ------------------------------------------------------------ |
+| /proc/cmdline     | 载入 kernel 时所下达的相关指令与参数！查阅此文件，可了解指令是如何启动的！ |
+| /proc/cpuinfo     | 本机的 CPU 的相关信息，包含频率、类型与运算功能等            |
+| /proc/devices     | 这个文件记录了系统各个主要设备的主要设备代号，与 [mknod](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html#mknod) 有关呢！ |
+| /proc/filesystems | 目前系统已经载入的文件系统啰！                               |
+| /proc/interrupts  | 目前系统上面的 IRQ 分配状态。                                |
+| /proc/ioports     | 目前系统上面各个设备所配置的 I/O 位址。                      |
+| /proc/kcore       | 这个就是内存的大小啦！好大对吧！但是不要读他啦！             |
+| /proc/loadavg     | 还记得 [top](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html#topm) 以及 [uptime](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html#uptime) 吧？没错！上头的三个平均数值就是记录在此！ |
+| /proc/meminfo     | 使用 [free](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html#free) 列出的内存信息，嘿嘿！在这里也能够查阅到！ |
+| /proc/modules     | 目前我们的 Linux 已经载入的模块列表，也可以想成是驱动程序啦！ |
+| /proc/mounts      | 系统已经挂载的数据，就是用 mount 这个指令调用出来的数据啦！  |
+| /proc/swaps       | 到底系统挂载入的内存在哪里？呵呵！使用掉的 partition 就记录在此啦！ |
+| /proc/partitions  | 使用 fdisk -l 会出现目前所有的 partition 吧？在这个文件当中也有纪录喔！ |
+| /proc/uptime      | 就是用 uptime 的时候，会出现的信息啦！                       |
+| /proc/version     | 核心的版本，就是用 uname -a 显示的内容啦！                   |
+| /proc/bus/*       | 一些总线的设备，还有 USB 的设备也记录在此喔！                |
+
+其实，上面这些文件鸟哥在此建议您可以使用 cat 去查阅看看，不必深入了解， 不过，观看过文件内容后，毕竟会比较有感觉啦！如果未来您想要自行撰写某些工具软件， 那么这个目录下面的相关文件可能会对您有点帮助的喔！
+
+
+
 ### 16.4.3 查询已打开文件或已执行程序打开之文件
 
 以下是一些用于查询文件和程序相关信息的命令：
@@ -509,8 +1680,6 @@ ls /proc/1
 fuser命令用于查找正在使用指定文件或文件系统的程序。
 
 ```
-bash
-复制代码
 fuser [-umv] [-k [i] [-signal]] file/dir
 ```
 
@@ -519,24 +1688,18 @@ fuser [-umv] [-k [i] [-signal]] file/dir
 - 找出当前目录的使用情况：
 
   ```
-  bash
-  复制代码
   fuser -uv .
   ```
-
+  
 - 查找使用/proc文件系统的程序：
 
   ```
-  bash
-  复制代码
   fuser -mvu /proc
   ```
-
+  
 - 强制终止使用/home文件系统的程序：
 
   ```
-  bash
-  复制代码
   fuser -mki /home
   ```
 
@@ -545,8 +1708,6 @@ fuser [-umv] [-k [i] [-signal]] file/dir
 lsof命令用于列出被程序所打开的文件。
 
 ```
-bash
-复制代码
 lsof [-aUu] [+d]
 ```
 
@@ -555,32 +1716,24 @@ lsof [-aUu] [+d]
 - 列出所有打开的文件：
 
   ```
-  bash
-  复制代码
   lsof
   ```
-
+  
 - 列出属于root用户的程序打开的socket文件：
 
   ```
-  bash
-  复制代码
   lsof -u root -a -U
   ```
-
+  
 - 查找/dev目录下的所有已打开的设备：
 
   ```
-  bash
-  复制代码
   lsof +d /dev
   ```
-
+  
 - 查找root用户的bash进程打开的文件：
 
   ```
-  bash
-  复制代码
   lsof -u root | grep bash
   ```
 
@@ -589,8 +1742,6 @@ lsof [-aUu] [+d]
 pidof命令用于查找正在执行的程序的PID。
 
 ```
-bash
-复制代码
 pidof [-sx] program_name
 ```
 
@@ -599,12 +1750,183 @@ pidof [-sx] program_name
 - 查找systemd和rsyslogd程序的PID：
 
   ```
-  bash
-  复制代码
   pidof systemd rsyslogd
   ```
 
 通过这些工具，我们可以更好地管理和监控系统中的程序和资源，确保系统的正常运行。
+
+#### 原文：
+
+其实还有一些与程序相关的指令可以值得参考与应用的，我们来谈一谈：
+
+- fuser：借由文件（或文件系统）找出正在使用该文件的程序
+
+有的时候我想要知道我的程序到底在这次启动过程中打开了多少文件，可以利用 fuser 来观察啦！ 举例来说，你如果卸载时发现系统通知：“ device is busy ”，那表示这个文件系统正在忙碌中， 表示有某支程序有利用到该文件系统啦！那么你就可以利用 fuser 来追踪啰！fuser 语法有点像这样：
+
+```
+[root@study ~]# fuser [-umv] [-k [i] [-signal]] file/dir
+选项与参数：
+-u  ：除了程序的 PID 之外，同时列出该程序的拥有者；
+-m  ：后面接的那个文件名会主动的上提到该文件系统的最顶层，对 umount 不成功很有效！
+-v  ：可以列出每个文件与程序还有指令的完整相关性！
+-k  ：找出使用该文件/目录的 PID ，并试图以 SIGKILL 这个讯号给予该 PID；
+-i  ：必须与 -k 配合，在删除 PID 之前会先询问使用者意愿！
+-signal：例如 -1 -15 等等，若不加的话，默认是 SIGKILL （-9） 啰！
+
+范例一：找出目前所在目录的使用 PID/所属帐号/权限 为何？
+[root@study ~]# fuser -uv .
+                     USER        PID ACCESS COMMAND
+/root:               root      13888 ..c.. （root）bash
+                     root      31743 ..c.. （root）bash
+```
+
+看到输出的结果没？他说“.”下面有两个 PID 分别为 13888, 31743 的程序，该程序属于 root 且指令为 bash 。 比较有趣的是那个 ACCESS 的项目，那个项目代表的意义为：
+
+- c ：此程序在当前的目录下（非次目录）；
+- e ：可被触发为执行状态；
+- f ：是一个被打开的文件；
+- r ：代表顶层目录 （root directory）；
+- F ：该文件被打开了，不过在等待回应中；
+- m ：可能为分享的动态函数库；
+
+那如果你想要查阅某个文件系统下面有多少程序正在占用该文件系统时，那个 -m 的选项就很有帮助了！ 让我们来做几个简单的测试，包括实体的文件系统挂载与 /proc 这个虚拟文件系统的内容， 看看有多少的程序对这些挂载点或其他目录的使用状态吧！
+
+```
+范例二：找到所有使用到 /proc 这个文件系统的程序吧！
+[root@study ~]# fuser -uv /proc
+/proc:               root     kernel mount （root）/proc
+                     rtkit       768 .rc.. （rtkit）rtkit-daemon
+# 数据量还不会很多，虽然这个目录很繁忙～没关系！我们可以继续这样作，看看其他的程序！
+
+[root@study ~]# fuser -mvu /proc
+                     USER        PID ACCESS COMMAND
+/proc:               root     kernel mount （root）/proc
+                     root          1 f.... （root）systemd
+                     root          2 ...e. （root）kthreadd
+.....（下面省略）.....
+# 有这几支程序在进行 /proc 文件系统的存取喔！这样清楚了吗？
+
+范例三：找到所有使用到 /home 这个文件系统的程序吧！
+[root@study ~]# echo $$
+31743  # 先确认一下，自己的 bash PID 号码吧！
+[root@study ~]# cd /home
+[root@study home]# fuser -muv .
+                     USER        PID ACCESS COMMAND
+/home:               root     kernel mount （root）/home
+                     dmtsai    31535 ..c.. （dmtsai）bash
+                     root      31571 ..c.. （root）passwd
+                     root      31737 ..c.. （root）sudo
+                     root      31743 ..c.. （root）bash    # 果然，自己的 PID 在啊！
+[root@study home]# cd ~
+[root@study ~]# umount /home
+umount: /home: target is busy.
+        （In some cases useful info about processes that use
+         the device is found by lsof（8） or fuser（1））
+# 从 fuser 的结果可以知道，总共有五只 process 在该目录下运行，那即使 root 离开了 /home，
+# 当然还是无法 umount 的！那要怎办？哈哈！可以通过如下方法一个一个删除～
+[root@study ~]# fuser -mki /home
+/home:               31535c 31571c 31737c  # 你会发现， PID 跟上面查到的相同！
+Kill process 31535 ? （y/N） # 这里会问你要不要删除！当然不要乱删除啦！通通取消！
+```
+
+既然可以针对整个文件系统，那么能不能仅针对单一文件啊？当然可以啰！看一下下面的案例先：
+
+```
+范例四：找到 /run 下面属于 FIFO 类型的文件，并且找出存取该文件的程序
+[root@study ~]# find /run -type p
+.....（前面省略）.....
+/run/systemd/sessions/165.ref
+/run/systemd/sessions/1.ref
+/run/systemd/sessions/c1.ref   # 随便抓个项目！就是这个好了！来测试一下！
+
+[root@study ~]# fuser -uv /run/systemd/sessions/c1.ref
+                     USER        PID ACCESS COMMAND
+/run/systemd/sessions/c1.ref:
+                     root        763 f.... （root）systemd-logind
+                     root       5450 F.... （root）gdm-session-wor
+# 通常系统的 FIFO 文件都会放置到 /run 下面，通过这个方式来追踪该文件被存取的 process！
+# 也能够晓得系统有多忙碌啊！呵呵！
+```
+
+如何？很有趣的一个指令吧！通过这个 fuser 我们可以找出使用该文件、目录的程序，借以观察的啦！ 他的重点与 ps, pstree 不同。 fuser 可以让我们了解到某个文件 （或文件系统） 目前正在被哪些程序所利用！
+
+- lsof ：列出被程序所打开的文件文件名
+
+相对于 fuser 是由文件或者设备去找出使用该文件或设备的程序，反过来说，如何查出某个程序打开或者使用的文件与设备呢？呼呼！那就是使用 lsof 啰～
+
+```
+[root@study ~]# lsof [-aUu] [+d]
+选项与参数：
+-a  ：多项数据需要“同时成立”才显示出结果时！
+-U  ：仅列出 Unix like 系统的 socket 文件类型；
+-u  ：后面接 username，列出该使用者相关程序所打开的文件；
++d  ：后面接目录，亦即找出某个目录下面已经被打开的文件！
+
+范例一：列出目前系统上面所有已经被打开的文件与设备：
+[root@study ~]# lsof
+COMMAND   PID   TID    USER   FD   TYPE    DEVICE  SIZE/OFF       NODE NAME
+systemd     1          root  cwd    DIR     253,0      4096        128 /
+systemd     1          root  rtd    DIR     253,0      4096        128 /
+systemd     1          root  txt    REG     253,0   1230920     967763 /usr/lib/systemd/systemd
+....（下面省略）....
+# 注意到了吗？是的，在默认的情况下， lsof 会将目前系统上面已经打开的
+# 文件全部列出来～所以，画面多的吓人啊！您可以注意到，第一个文件 systemd 执行的
+# 地方就在根目录，而根目录，嘿嘿！所在的 inode 也有显示出来喔！
+
+范例二：仅列出关于 root 的所有程序打开的 socket 文件
+[root@study ~]# lsof -u root -a -U
+COMMAND     PID USER   FD   TYPE             DEVICE SIZE/OFF   NODE NAME
+systemd       1 root    3u  unix 0xffff8800b7756580      0t0  13715 socket
+systemd       1 root    7u  unix 0xffff8800b7755a40      0t0   1902 @/org/freedesktop/systemd1/notify
+systemd       1 root    9u  unix 0xffff8800b7756d00      0t0   1903 /run/systemd/private
+.....（中间省略）.....
+Xorg       4496 root    1u  unix 0xffff8800ab107480      0t0  25981 @/tmp/.X11-unix/X0
+Xorg       4496 root    3u  unix 0xffff8800ab107840      0t0  25982 /tmp/.X11-unix/X0
+Xorg       4496 root   16u  unix 0xffff8800b7754f00      0t0  25174 @/tmp/.X11-unix/X0
+.....（下面省略）.....
+# 注意到那个 -a 吧！如果你分别输入 lsof -u root 及 lsof -U ，会有啥信息？
+# 使用 lsof -u root -U 及 lsof -u root -a -U ，呵呵！都不同啦！
+# -a 的用途就是在解决同时需要两个项目都成立时啊！ ^_^
+
+范例三：请列出目前系统上面所有的被启动的周边设备
+[root@study ~]# lsof +d /dev
+COMMAND     PID           USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME
+systemd       1           root    0u   CHR                1,3      0t0 1028 /dev/null
+systemd       1           root    1u   CHR                1,3      0t0 1028 /dev/null
+# 看吧！因为设备都在 /dev 里面嘛！所以啰，使用搜寻目录即可啊！
+
+范例四：秀出属于 root 的 bash 这支程序所打开的文件
+[root@study ~]# lsof -u root &#124; grep bash
+ksmtuned    781 root  txt    REG    253,0    960384   33867220 /usr/bin/bash
+bash      13888 root  cwd    DIR    253,0      4096   50331777 /root
+bash      13888 root  rtd    DIR    253,0      4096        128 /
+bash      13888 root  txt    REG    253,0    960384   33867220 /usr/bin/bash
+bash      13888 root  mem    REG    253,0 106065056   17331169 /usr/lib/locale/locale-archive
+....（下面省略）....
+```
+
+这个指令可以找出您想要知道的某个程序是否有启用哪些信息？例如上头提到的范例四的执行结果呢！ ^_^
+
+- pidof ：找出某支正在执行的程序的 PID
+
+```
+[root@study ~]# pidof [-sx] program_name
+选项与参数：
+-s  ：仅列出一个 PID 而不列出所有的 PID
+-x  ：同时列出该 program name 可能的 PPID 那个程序的 PID
+
+范例一：列出目前系统上面 systemd 以及 rsyslogd 这两个程序的 PID
+[root@study ~]# pidof systemd rsyslogd
+1 742
+# 理论上，应该会有两个 PID 才对。上面的显示也是出现了两个 PID 喔。
+# 分别是 systemd 及 rsyslogd 这两支程序的 PID 啦。
+```
+
+很简单的用法吧，通过这个 pidof 指令，并且配合 ps aux 与正则表达式，就可以很轻易的找到您所想要的程序内容了呢。 如果要找的是 bash ，那就 pidof bash ，立刻列出一堆 PID 号码了～
+
+
+
+
 
 ## 16.5 SELinux 初探
 
@@ -624,6 +1946,49 @@ SELinux 是一个内核模块，旨在通过细致的权限设置来控制程序
 
 在传统的 Linux 系统中，权限控制是通过 DAC 实现的，基于用户身份和文件的权限设置来决定访问权限。然而，DAC 存在一些问题，例如 root 拥有最高权限，任何程序获取了 root 权限后都可以访问系统资源。SELinux 引入了委任式存取控制（MAC），通过制定规则来控制特定程序对特定文件的访问权限。
 
+#### 原文：
+
+什么是 SELinux 呢？其实他是“ Security Enhanced Linux ”的缩写，字面上的意义就是安全强化的 Linux 之意！那么所谓的“安全强化”是强化哪个部分？ 是网络资安还是权限管理？下面就让我们来谈谈吧！
+
+- 当初设计的目标：避免资源的误用
+
+SELinux 是由美国国家安全局 （NSA） 开发的，当初开发这玩意儿的目的是因为很多企业界发现， 通常系统出现问题的原因大部分都在于“内部员工的资源误用”所导致的，实际由外部发动的攻击反而没有这么严重。 那么什么是“员工资源误用”呢？举例来说，如果有个不是很懂系统的系统管理员为了自己设置的方便，将网页所在目录 /var/www/html/ 的权限设置为 drwxrwxrwx 时，你觉得会有什么事情发生？
+
+现在我们知道所有的系统资源都是通过程序来进行存取的，那么 /var/www/html/ 如果设置为 777 ， 代表所有程序均可对该目录存取，万一你真的有启动 WWW 服务器软件，那么该软件所触发的程序将可以写入该目录， 而该程序却是对整个 Internet 提供服务的！只要有心人接触到这支程序，而且该程序刚好又有提供使用者进行写入的功能， 那么外部的人很可能就会对你的系统写入些莫名其妙的东西！那可真是不得了！一个小小的 777 问题可是大大的！
+
+为了控管这方面的权限与程序的问题，所以美国国家安全局就着手处理操作系统这方面的控管。 由于 Linux 是自由软件，程序码都是公开的，因此她们便使用 Linux 来作为研究的目标， 最后更将研究的结果整合到 Linux 核心里面去，那就是 SELinux 啦！所以说， SELinux 是整合到核心的一个模块喔！ 更多的 SELinux 相关说明可以参考：
+
+- http://www.nsa.gov/research/selinux/
+
+这也就是说：其实 SELinux 是在进行程序、文件等细部权限设置依据的一个核心模块！ 由于启动网络服务的也是程序，因此刚好也能够控制网络服务能否存取系统资源的一道关卡！ 所以，在讲到 SELinux 对系统的存取控制之前，我们得先来回顾一下之前谈到的系统文件权限与使用者之间的关系。 因为先谈完这个你才会知道为何需要 SELinux 的啦！
+
+- 传统的文件权限与帐号关系：自主式存取控制, DAC
+
+我们[第十三章](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html)的内容，知道系统的帐号主要分为系统管理员 （root） 与一般用户，而这两种身份能否使用系统上面的文件资源则与 rwx 的权限设置有关。 不过你要注意的是，各种权限设置对 root 是无效的。因此，当某个程序想要对文件进行存取时， 系统就会根据该程序的拥有者/群组，并比对文件的权限，若通过权限检查，就可以存取该文件了。
+
+这种存取文件系统的方式被称为“自主式存取控制 （Discretionary Access Control, DAC）”，基本上，就是依据程序的拥有者与文件资源的 rwx 权限来决定有无存取的能力。 不过这种 DAC 的存取控制有几个困扰，那就是：
+
+- root 具有最高的权限：如果不小心某支程序被有心人士取得， 且该程序属于 root 的权限，那么这支程序就可以在系统上进行任何资源的存取！真是要命！
+- 使用者可以取得程序来变更文件资源的存取权限：如果你不小心将某个目录的权限设置为 777 ，由于对任何人的权限会变成 rwx ，因此该目录就会被任何人所任意存取！
+
+这些问题是非常严重的！尤其是当你的系统是被某些漫不经心的系统管理员所掌控时！她们甚至觉得目录权限调为 777 也没有什么了不起的危险哩...
+
+- 以政策规则订定特定程序读取特定文件：委任式存取控制, MAC
+
+现在我们知道 DAC 的困扰就是当使用者取得程序后，他可以借由这支程序与自己默认的权限来处理他自己的文件资源。 万一这个使用者对 Linux 系统不熟，那就很可能会有资源误用的问题产生。为了避免 DAC 容易发生的问题，因此 SELinux 导入了委任式存取控制 （Mandatory Access Control, MAC） 的方法！
+
+委任式存取控制 （MAC） 有趣啦！他可以针对特定的程序与特定的文件资源来进行权限的控管！ 也就是说，即使你是 root ，那么在使用不同的程序时，你所能取得的权限并不一定是 root ， 而得要看当时该程序的设置而定。如此一来，我们针对控制的“主体”变成了“程序”而不是使用者喔！ 此外，这个主体程序也不能任意使用系统文件资源，因为每个文件资源也有针对该主体程序设置可取用的权限！ 如此一来，控制项目就细的多了！但整个系统程序那么多、文件那么多，一项一项控制可就没完没了！ 所以 SELinux 也提供一些默认的政策 （Policy） ，并在该政策内提供多个规则 （rule） ，让你可以选择是否启用该控制规则！
+
+在委任式存取控制的设置下，我们的程序能够活动的空间就变小了！举例来说， WWW 服务器软件的达成程序为 httpd 这支程序， 而默认情况下， httpd 仅能在 /var/www/ 这个目录下面存取文件，如果 httpd 这个程序想要到其他目录去存取数据时， 除了规则设置要开放外，目标目录也得要设置成 httpd 可读取的模式 （type） 才行喔！限制非常多！ 所以，即使不小心 httpd 被 cracker 取得了控制权，他也无权浏览 /etc/shadow 等重要的配置文件喔！
+
+简单的来说，针对 Apache 这个 WWW 网络服务使用 DAC 或 MAC 的结果来说，两者间的关系可以使用下图来说明。 下面这个图示取自 Red Hat 训练教材，真的是很不错～所以被鸟哥借用来说明一下！
+
+![使用 DAC/MAC 产生的不同结果，以 Apache 为例说明](image/dac_mac.jpg)图16.5.1、使用 DAC/MAC 产生的不同结果，以 Apache 为例说明
+
+左图是没有 SELinux 的 DAC 存取结果，apache 这只 root 所主导的程序，可以在这三个目录内作任何文件的新建与修改～ 相当麻烦～右边则是加上 SELinux 的 MAC 管理的结果，SELinux 仅会针对 Apache 这个“ process ”放行部份的目录， 其他的非正规目录就不会放行给 Apache 使用！因此不管你是谁，就是不能穿透 MAC 的框框！这样有比较了解乎？
+
+
+
 ### 16.5.2 SELinux 的运行模式
 
 SELinux 通过 MAC 来控制程序的权限。其主要概念包括：
@@ -642,72 +2007,968 @@ SELinux 的运行模式有三种：
 可以通过 `getenforce` 和 `sestatus` 查看当前的 SELinux 模式和政策。配置文件在 `/etc/selinux/config`。
 
 ```
-bash复制代码getenforce
+getenforce
 sestatus
 ```
+
+#### 原文：
+
+再次的重复说明一下，SELinux 是通过 MAC 的方式来控管程序，他控制的主体是程序， 而目标则是该程序能否读取的“文件资源”！所以先来说明一下这些咚咚的相关性啦！[[4\]](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/content/143.html#ps4)
+
+- 主体 （Subject）： SELinux 主要想要管理的就是程序，因此你可以将“主体”跟本章谈到的 process 划上等号；
+- 目标 （Object）： 主体程序能否存取的“目标资源”一般就是文件系统。因此这个目标项目可以等文件系统划上等号；
+- 政策 （Policy）： 由于程序与文件数量庞大，因此 SELinux 会依据某些服务来制订基本的存取安全性政策。这些政策内还会有详细的规则 （rule） 来指定不同的服务开放某些资源的存取与否。在目前的 CentOS 7.x 里面仅有提供三个主要的政策，分别是：
+  - targeted：针对网络服务限制较多，针对本机限制较少，是默认的政策；
+  - minimum：由 target 修订而来，仅针对选择的程序来保护！
+  - mls：完整的 SELinux 限制，限制方面较为严格。建议使用默认的 targeted 政策即可。
+- 安全性本文 （security context）： 我们刚刚谈到了主体、目标与政策面，但是主体能不能存取目标除了政策指定之外，主体与目标的安全性本文必须一致才能够顺利存取。 这个安全性本文 （security context） 有点类似文件系统的 rwx 啦！安全性本文的内容与设置是非常重要的！ 如果设置错误，你的某些服务（主体程序）就无法存取文件系统（目标资源），当然就会一直出现“权限不符”的错误讯息了！
+
+由于 SELinux 重点在保护程序读取文件系统的权限，因此我们将上述的几个说明搭配起来，绘制成下面的流程图，比较好理解：
+
+![SELinux 运行的各元件之相关性](image/selinux_1.gif)图16.5.2、SELinux 运行的各元件之相关性（本图参考小州老师的上课讲义）
+
+上图的重点在“主体”如何取得“目标”的资源存取权限！ 由上图我们可以发现，（1）主体程序必须要通过 SELinux 政策内的规则放行后，就可以与目标资源进行安全性本文的比对， （2）若比对失败则无法存取目标，若比对成功则可以开始存取目标。问题是，最终能否存取目标还是与文件系统的 rwx 权限设置有关喔！如此一来，加入了 SELinux 之后，出现权限不符的情况时，你就得要一步一步的分析可能的问题了！
+
+- 安全性本文 （Security Context）
+
+CentOS 7.x 的 target 政策已经帮我们制订好非常多的规则了，因此你只要知道如何打开/关闭某项规则的放行与否即可。 那个安全性本文比较麻烦！因为你可能需要自行设置文件的安全性本文呢！为何需要自行设置啊？ 举例来说，你不也常常进行文件的 rwx 的重新设置吗？这个安全性本文你就将他想成 SELinux 内必备的 rwx 就是了！这样比较好理解啦。
+
+安全性本文存在于主体程序中与目标文件资源中。程序在内存内，所以安全性本文可以存入是没问题。 那文件的安全性本文是记录在哪里呢？事实上，安全性本文是放置到文件的 inode 内的，因此主体程序想要读取目标文件资源时，同样需要读取 inode ， 这 inode 内就可以比对安全性本文以及 rwx 等权限值是否正确，而给予适当的读取权限依据。
+
+那么安全性本文到底是什么样的存在呢？我们先来看看 /root 下面的文件的安全性本文好了。 观察安全性本文可使用“ ls -Z ”去观察如下：（注意：你必须已经启动了 SELinux 才行！若尚未启动，这部份请稍微看过一遍即可。下面会介绍如何启动 SELinux 喔！）
+
+```
+# 先来观察一下 root 主文件夹下面的“文件的 SELinux 相关信息”
+[root@study ~]# ls -Z
+-rw-------. root root system_u:object_r:admin_home_t:s0     anaconda-ks.cfg
+-rw-r--r--. root root system_u:object_r:admin_home_t:s0     initial-setup-ks.cfg
+-rw-r--r--. root root unconfined_u:object_r:admin_home_t:s0 regular_express.txt
+# 上述特殊字体的部分，就是安全性本文的内容！鸟哥仅列出数个默认的文件而已，
+# 本书学习过程中所写下的文件则没有列在上头喔！
+```
+
+如上所示，安全性本文主要用冒号分为三个字段，这三个字段的意义为：
+
+```
+Identify:role:type
+身份识别:角色:类型
+```
+
+这三个字段的意义仔细的说明一下吧：
+
+- 身份识别 （Identify）：
+
+相当于帐号方面的身份识别！主要的身份识别常见有下面几种常见的类型：
+
+- unconfined_u：不受限的用户，也就是说，该文件来自于不受限的程序所产生的！一般来说，我们使用可登陆帐号来取得 bash 之后， 默认的 bash 环境是不受 SELinux 管制的～因为 bash 并不是什么特别的网络服务！因此，在这个不受 SELinux 所限制的 bash 程序所产生的文件， 其身份识别大多就是 unconfined_u 这个“不受限”用户啰！
+- system_u：系统用户，大部分就是系统自己产生的文件啰！
+
+基本上，如果是系统或软件本身所提供的文件，大多就是 system_u 这个身份名称，而如果是我们用户通过 bash 自己创建的文件，大多则是不受限的 unconfined_u 身份～如果是网络服务所产生的文件，或者是系统服务运行过程产生的文件，则大部分的识别就会是 system_u 啰！
+
+因为鸟哥这边教大家使用文字界面来产生许多的数据，因此你看上面的三个文件中，系统安装主动产生的 anaconda-ks.cfs 及 initial-setup-ks.cfg 就会是 system_u，而我们自己从网络上面抓下来的 regular_express.txt 就会是 unconfined_u 这个识别啊！
+
+- 角色 （Role）：
+
+通过角色字段，我们可以知道这个数据是属于程序、文件资源还是代表使用者。一般的角色有：
+
+- object_r：代表的是文件或目录等文件资源，这应该是最常见的啰；
+- system_r：代表的就是程序啦！不过，一般使用者也会被指定成为 system_r 喔！
+
+你也会发现角色的字段最后面使用“ _r ”来结尾！因为是 role 的意思嘛！
+
+- 类型 （Type） （最重要！）：
+
+在默认的 targeted 政策中， Identify 与 Role 字段基本上是不重要的！重要的在于这个类型 （type） 字段！ 基本上，一个主体程序能不能读取到这个文件资源，与类型字段有关！而类型字段在文件与程序的定义不太相同，分别是：
+
+- type：在文件资源 （Object） 上面称为类型 （Type）；
+- domain：在主体程序 （Subject） 则称为领域 （domain） 了！
+
+domain 需要与 type 搭配，则该程序才能够顺利的读取文件资源啦！
+
+- 程序与文件 SELinux type 字段的相关性
+
+那么这三个字段如何利用呢？首先我们来瞧瞧主体程序在这三个字段的意义为何！通过身份识别与角色字段的定义， 我们可以约略知道某个程序所代表的意义喔！先来动手瞧一瞧目前系统中的程序在 SELinux 下面的安全本文为何？
+
+```
+# 再来观察一下系统“程序的 SELinux 相关信息”
+[root@study ~]# ps -eZ
+LABEL                             PID TTY          TIME CMD
+system_u:system_r:init_t:s0         1 ?        00:00:03 systemd
+system_u:system_r:kernel_t:s0       2 ?        00:00:00 kthreadd
+system_u:system_r:kernel_t:s0       3 ?        00:00:00 ksoftirqd/0
+.....（中间省略）.....
+unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023 31513 ? 00:00:00 sshd
+unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023 31535 pts/0 00:00:00 bash
+# 基本上程序主要就分为两大类，一种是系统有受限的 system_u:system_r，另一种则可能是用户自己的，
+# 比较不受限的程序 （通常是本机用户自己执行的程序），亦即是 unconfined_u:unconfined_r 这两种！
+```
+
+基本上，这些对应数据在 targeted 政策下的对应如下：
+
+| 身份识别     | 角色         | 该对应在 targeted 的意义                                     |
+| ------------ | ------------ | ------------------------------------------------------------ |
+| unconfined_u | unconfined_r | 一般可登陆使用者的程序啰！比较没有受限的程序之意！大多数都是用户已经顺利登陆系统 （不论是网络还是本机登陆来取得可用的 shell） 后， 所用来操作系统的程序！如 bash, X window 相关软件等。 |
+| system_u     | system_r     | 由于为系统帐号，因此是非交谈式的系统运行程序，大多数的系统程序均是这种类型！ |
+
+但就如上所述，在默认的 target 政策下，其实最重要的字段是类型字段 （type）， 主体与目标之间是否具有可以读写的权限，与程序的 domain 及文件的 type 有关！这两者的关系我们可以使用 crond 以及他的配置文件来说明！ 亦即是 /usr/sbin/crond, /etc/crontab, /etc/cron.d 等文件来说明。 首先，看看这几个咚咚的安全性本文内容先：
+
+```
+# 1\. 先看看 crond 这个“程序”的安全本文内容：
+[root@study ~]# ps -eZ &#124; grep cron
+system_u:system_r:crond_t:s0-s0:c0.c1023 1338 ? 00:00:01 crond
+system_u:system_r:crond_t:s0-s0:c0.c1023 1340 ? 00:00:00 atd
+# 这个安全本文的类型名称为 crond_t 格式！
+
+# 2\. 再来瞧瞧可执行文件、配置文件等等的安全本文内容为何！
+[root@study ~]# ll -Zd /usr/sbin/crond /etc/crontab /etc/cron.d
+drwxr-xr-x. root root system_u:object_r:system_cron_spool_t:s0 /etc/cron.d
+-rw-r--r--. root root system_u:object_r:system_cron_spool_t:s0 /etc/crontab
+-rwxr-xr-x. root root system_u:object_r:crond_exec_t:s0 /usr/sbin/crond
+```
+
+当我们执行 /usr/sbin/crond 之后，这个程序变成的程序的 domain 类型会是 crond_t 这一个～而这个 crond_t 能够读取的配置文件则为 system_cron_spool_t 这种的类型。因此不论 /etc/crontab, /etc/cron.d 以及 /var/spool/cron 都会是相关的 SELinux 类型 （/var/spool/cron 为 user_cron_spool_t）。 文字看起来不太容易了解，我们使用图示来说明这几个东西的关系！
+
+![主体程序取得的 domain 与目标文件资源的 type 相互关系](image/centos7_selinux_2.jpg)图16.5.3、主体程序取得的 domain 与目标文件资源的 type 相互关系以 crond 为例
+
+上图的意义我们可以这样看的：
+
+1. 首先，我们触发一个可执行的目标文件，那就是具有 crond_exec_t 这个类型的 /usr/sbin/crond 文件；
+2. 该文件的类型会让这个文件所造成的主体程序 （Subject） 具有 crond 这个领域 （domain）， 我们的政策针对这个领域已经制定了许多规则，其中包括这个领域可以读取的目标资源类型；
+3. 由于 crond domain 被设置为可以读取 system_cron_spool_t 这个类型的目标文件 （Object）， 因此你的配置文件放到 /etc/cron.d/ 目录下，就能够被 crond 那支程序所读取了；
+4. 但最终能不能读到正确的数据，还得要看 rwx 是否符合 Linux 权限的规范！
+
+上述的流程告诉我们几个重点，第一个是政策内需要制订详细的 domain/type 相关性；第二个是若文件的 type 设置错误， 那么即使权限设置为 rwx 全开的 777 ，该主体程序也无法读取目标文件资源的啦！不过如此一来， 也就可以避免使用者将他的主文件夹设置为 777 时所造成的权限困扰。
+
+真的是这样吗？没关系～让我们来做个测试练习吧！就是，万一你的 crond 配置文件的 SELinux 并不是 system_cron_spool_t 时， 该配置文件真的可以顺利的被读取运行吗？来看看下面的范例！
+
+```
+# 1\. 先假设你因为不熟的缘故，因此是在“root 主文件夹”创建一个如下的 cron 设置：
+[root@study ~]# vim checktime
+10 * * * * root sleep 60s
+
+# 2\. 检查后才发现文件放错目录了，又不想要保留副本，因此使用 mv 移动到正确目录：
+[root@study ~]# mv checktime /etc/cron.d
+[root@study ~]# ll /etc/cron.d/checktime
+-rw-r--r--. 1 root root 27 Aug  7 18:41 /etc/cron.d/checktime
+# 仔细看喔，权限是 644 ，确定没有问题！任何程序都能够读取喔！
+
+# 3\. 强制重新启动 crond ，然后偷看一下登录文件，看看有没有问题发生！
+[root@study ~]# systemctl restart crond
+[root@study ~]# tail /var/log/cron
+Aug  7 18:46:01 study crond[28174]: （（null）） Unauthorized SELinux context=system_u:system_r:
+system_cronjob_t:s0-s0:c0.c1023 file_context=unconfined_u:object_r:admin_home_t:s0 
+（/etc/cron.d/checktime）
+Aug  7 18:46:01 study crond[28174]: （root） FAILED （loading cron table）
+# 上面的意思是，有错误！因为原本的安全本文与文件的实际安全本文无法搭配的缘故！
+```
+
+您瞧瞧～从上面的测试案例来看，我们的配置文件确实没有办法被 crond 这个服务所读取喔！而原因在登录文件内就有说明， 主要就是来自 SELinux 安全本文 （context） type 的不同所致喔！没办法读就没办法读，先放着～后面再来学怎么处理这问题吧！
+
+
 
 ### 16.5.3 SELinux 的启动与关闭
 
 SELinux 的启动和关闭需要修改配置文件 `/etc/selinux/config`。修改模式后，需要重启系统。
 
 ```
-bash
-复制代码
 vim /etc/selinux/config
 ```
 
 可以使用 `setenforce` 命令在 enforcing 和 permissive 模式之间切换。
 
 ```
-bash复制代码setenforce 0
+setenforce 0
 setenforce 1
 ```
+
+#### 原文：
+
+并非所有的 Linux distributions 都支持 SELinux 的，所以你必须要先观察一下你的系统版本为何！ 鸟哥这里介绍的 CentOS 7.x 本身就有支持 SELinux 啦！所以你不需要自行编译 SELinux 到你的 Linux 核心中！ 目前 SELinux 依据启动与否，共有三种模式，分别如下：
+
+- enforcing：强制模式，代表 SELinux 运行中，且已经正确的开始限制 domain/type 了；
+- permissive：宽容模式：代表 SELinux 运行中，不过仅会有警告讯息并不会实际限制 domain/type 的存取。这种模式可以运来作为 SELinux 的 debug 之用；
+- disabled：关闭，SELinux 并没有实际运行。
+
+这三种模式跟[图16.5.2](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html#fig16.5.2)之间的关系如何呢？我们前面不是谈过主体程序需要经过政策规则、安全本文比对之后，加上 rwx 的权限规范， 若一切合理才会让程序顺利的读取文件吗？那么这个 SELinux 的三种模式与上面谈到的政策规则、安全本文的关系为何呢？我们还是使用图示加上流程来让大家理解一下：
+
+![SELinux 的三种类型与实际运行流程图示意](image/selinux_3.jpg)图16.5.4、SELinux 的三种类型与实际运行流程图示意
+
+就如上图所示，首先，你得要知道，并不是所有的程序都会被 SELinux 所管制，因此最左边会出现一个所谓的“有受限的程序主体”！那如何观察有没有受限 （confined ）呢？ 很简单啊！就通过 ps -eZ 去撷取！举例来说，我们来找一找 crond 与 bash 这两只程序是否有被限制吧？
+
+```
+[root@study ~]# ps -eZ &#124; grep -E 'cron&#124;bash'
+system_u:system_r:crond_t:s0-s0:c0.c1023 1340 ? 00:00:00 atd
+unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023 13888 tty2 00:00:00 bash
+unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023 28054 pts/0 00:00:00 bash
+unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023 28094 pts/0 00:00:00 bash
+system_u:system_r:crond_t:s0-s0:c0.c1023 28174 ? 00:00:00 crond
+```
+
+如前所述，因为在目前 target 这个政策下面，只有第三个类型 （type） 字段会有影响，因此我们上表仅列出第三个字段的数据而已。 我们可以看到， crond 确实是有受限的主体程序，而 bash 因为是本机程序，因此就是不受限 （unconfined_t） 的类型！也就是说， bash 是不需要经过图 16.5.4 的流程，而是直接去判断 rwx 而已～。
+
+了解了受限的主体程序的意义之后，再来了解一下，三种模式的运行吧！首先，如果是 Disabled 的模式，那么 SELinux 将不会运行，当然受限的程序也不会经过 SELinux ， 也是直接去判断 rwx 而已。那如果是宽容 （permissive） 模式呢？这种模式也是不会将主体程序抵挡 （所以箭头是可以直接穿透的喔！），不过万一没有通过政策规则，或者是安全本文的比对时， 那么该读写动作将会被纪录起来 （log），可作为未来检查问题的判断依据。
+
+至于最终那个 Enforcing 模式，就是实际将受限主体进入规则比对、安全本文比对的流程，若失败，就直接抵挡主体程序的读写行为，并且将他记录下来。 如果通通没问题，这才进入到 rwx 权限的判断喔！这样可以理解三种模式的行为了吗？
+
+那你怎么知道目前的 SELinux 模式呢？就通过 getenforce 吧！
+
+```
+[root@study ~]# getenforce
+Enforcing  &lt;==诺！就显示出目前的模式为 Enforcing 啰！
+```
+
+另外，我们又如何知道 SELinux 的政策 （Policy） 为何呢？这时可以使用 sestatus 来观察：
+
+```
+[root@study ~]# sestatus [-vb]
+选项与参数：
+-v  ：检查列于 /etc/sestatus.conf 内的文件与程序的安全性本文内容；
+-b  ：将目前政策的规则布林值列出，亦即某些规则 （rule） 是否要启动 （0/1） 之意；
+
+范例一：列出目前的 SELinux 使用哪个政策 （Policy）？
+[root@study ~]# sestatus
+SELinux status:                 enabled           &lt;==是否启动 SELinux
+SELinuxfs mount:                /sys/fs/selinux   &lt;==SELinux 的相关文件数据挂载点
+SELinux root directory:         /etc/selinux      &lt;==SELinux 的根目录所在
+Loaded policy name:             targeted          &lt;==目前的政策为何？
+Current mode:                   enforcing         &lt;==目前的模式
+Mode from config file:          enforcing         &lt;==目前配置文件内规范的 SELinux 模式
+Policy MLS status:              enabled           &lt;==是否含有 MLS 的模式机制
+Policy deny_unknown status:     allowed           &lt;==是否默认抵挡未知的主体程序
+Max kernel policy version:      28
+```
+
+如上所示，目前是启动的，而且是 Enforcing 模式，而由配置文件查询得知亦为 Enforcing 模式。 此外，目前的默认政策为 targeted 这一个。你应该要有疑问的是， SELinux 的配置文件是哪个文件啊？ 其实就是 /etc/selinux/config 这个文件喔！我们来看看内容：
+
+```
+[root@study ~]# vim /etc/selinux/config
+SELINUX=enforcing     &lt;==调整 enforcing&#124;disabled&#124;permissive
+SELINUXTYPE=targeted  &lt;==目前仅有 targeted, mls, minimum 三种政策
+```
+
+若有需要修改默认政策的话，就直接改 SELINUX=enforcing 那一行即可喔！
+
+- SELinux 的启动与关闭
+
+上面是默认的政策与启动的模式！你要注意的是，如果改变了政策则需要重新开机；如果由 enforcing 或 permissive 改成 disabled ，或由 disabled 改成其他两个，那也必须要重新开机。这是因为 SELinux 是整合到核心里面去的， 你只可以在 SELinux 运行下切换成为强制 （enforcing） 或宽容 （permissive） 模式，不能够直接关闭 SELinux 的！ 如果刚刚你发现 getenforce 出现 disabled 时，请到上述文件修改成为 enforcing 然后重新开机吧！
+
+不过你要注意的是，如果从 disable 转到启动 SELinux 的模式时， 由于系统必须要针对文件写入安全性本文的信息，因此开机过程会花费不少时间在等待重新写入 SELinux 安全性本文 （有时也称为 SELinux Label） ，而且在写完之后还得要再次的重新开机一次喔！你必须要等待粉长一段时间！ 等到下次开机成功后，再使用 [getenforce](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html#getenforce) 或 [sestatus](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html#sestatus) 来观察看看有否成功的启动到 Enforcing 的模式啰！
+
+如果你已经在 Enforcing 的模式，但是可能由于一些设置的问题导致 SELinux 让某些服务无法正常的运行， 此时你可以将 Enforcing 的模式改为宽容 （permissive） 的模式，让 SELinux 只会警告无法顺利连线的讯息， 而不是直接抵挡主体程序的读取权限。让 SELinux 模式在 enforcing 与 permissive 之间切换的方法为：
+
+```
+[root@study ~]# setenforce [0&#124;1]
+选项与参数：
+0 ：转成 permissive 宽容模式；
+1 ：转成 Enforcing 强制模式
+
+范例一：将 SELinux 在 Enforcing 与 permissive 之间切换与观察
+[root@study ~]# setenforce 0
+[root@study ~]# getenforce
+Permissive
+[root@study ~]# setenforce 1
+[root@study ~]# getenforce
+Enforcing
+```
+
+不过请注意， setenforce 无法在 Disabled 的模式下面进行模式的切换喔！
+
+![鸟哥的图示](image/vbird_face-172282838528012.gif)
+
+**Tips** 在某些特殊的情况下面，你从 Disabled 切换成 Enforcing 之后，竟然有一堆服务无法顺利启动，都会跟你说在 /lib/xxx 里面的数据没有权限读取，所以启动失败。这大多是由于在重新写入 SELinux type （Relabel） 出错之故，使用 Permissive 就没有这个错误。那如何处理呢？最简单的方法就是在 Permissive 的状态下，使用“ restorecon -Rv / ”重新还原所有 SELinux 的类型，就能够处理这个错误！
+
+
+
+
 
 ### 16.5.4 SELinux 政策内的规则管理
 
 SELinux 的政策包含多个规则，可以通过 `getsebool` 查看所有规则的状态。
 
 ```
-bash
-复制代码
 getsebool -a
 ```
 
 通过 `setsebool` 修改规则的布林值。
 
 ```
-bash
-复制代码
 setsebool -P 规则名称 1
 ```
+
+#### 原文：
+
+从[图 16.5.4](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html#fig16.5.4) 里面，我们知道 SELinux 的三种模式是会影响到主体程序的放行与否。 如果是进入 Enforcing 模式，那么接着下来会影响到主体程序的，当然就是第二关：“ target 政策内的各项规则 （rules） ”了！ 好了，那么我们怎么知道目前这个政策里面到底有多少会影响到主体程序的规则呢？很简单，就通过 getsebool 来瞧一瞧即可。
+
+- SELinux 各个规则的布林值查询 getsebool
+
+如果想要查询系统上面全部规则的启动与否 （on/off，亦即布林值），很简单的通过 sestatus -b 或 getsebool -a 均可！
+
+```
+[root@study ~]# getsebool [-a] [规则的名称]
+选项与参数：
+-a  ：列出目前系统上面的所有 SELinux 规则的布林值为打开或关闭值
+
+范例一：查询本系统内所有的布林值设置状况
+[root@study ~]# getsebool -a
+abrt_anon_write --&gt; off
+abrt_handle_event --&gt; off
+....（中间省略）....
+cron_can_relabel --&gt; off                 # 这个跟 cornd 比较有关！
+cron_userdomain_transition --&gt; on
+....（中间省略）....
+httpd_enable_homedirs --&gt; off            # 这当然就是跟网页，亦即 http 有关的啰！
+....（下面省略）....
+# 这么多的 SELinux 规则喔！每个规则后面都列出现在是允许放行还是不许放行的布林值喔！
+```
+
+- SELinux 各个规则规范的主体程序能够读取的文件 SELinux type 查询 seinfo, sesearch
+
+我们现在知道有这么多的 SELinux 规则，但是每个规则内到底是在限制什么东西？如果你想要知道的话，那就得要使用 seinfo 等工具！ 这些工具并没有在我们安装时就安装了，因此请拿出原版光盘，放到光驱，鸟哥假设你将原版光盘挂载到 /mnt 下面，那么接下来这么作， 先安装好我们所需要的软件才行！
+
+```
+[root@study ~]# yum install /mnt/Packages/setools-console-*
+```
+
+很快的安装完毕之后，我们就可以来使用 seinfo, sesearch 等指令了！
+
+```
+[root@study ~]# seinfo [-Atrub]
+选项与参数：
+-A  ：列出 SELinux 的状态、规则布林值、身份识别、角色、类别等所有信息
+-u  ：列出 SELinux 的所有身份识别 （user） 种类
+-r  ：列出 SELinux 的所有角色 （role） 种类
+-t  ：列出 SELinux 的所有类别 （type） 种类
+-b  ：列出所有规则的种类 （布林值）
+
+范例一：列出 SELinux 在此政策下的统计状态
+[root@study ~]# seinfo
+Statistics for policy file: /sys/fs/selinux/policy
+Policy Version & Type: v.28 （binary, mls）
+
+   Classes:            83    Permissions:       255
+   Sensitivities:       1    Categories:       1024
+   Types:            4620    Attributes:        357
+   Users:               8    Roles:              14
+   Booleans:          295    Cond. Expr.:       346
+   Allow:          102249    Neverallow:          0
+   Auditallow:        160    Dontaudit:        8413
+   Type_trans:      16863    Type_change:        74
+   Type_member:        35    Role allow:         30
+   Role_trans:        412    Range_trans:      5439
+....（下面省略）....
+# 从上面我们可以看到这个政策是 targeted ，此政策的安全本文类别有 4620 个；
+# 而各种 SELinux 的规则 （Booleans） 共制订了 295 条！
+```
+
+我们在 16.5.2 里面简单的谈到了几个身份识别 （user） 以及角色 （role） 而已，如果你想要查询目前所有的身份识别与角色，就使用“ seinfo -u ”及“ seinfo -r ”就可以知道了！至于简单的统计数据，就直接输入 seinfo 即可！但是上面还是没有谈到规则相关的东西耶～ 没关系～一个一个来～我们在 16.5.1 的最后面谈到 /etc/cron.d/checktime 的 SELinux type 类型不太对～那我们也知道 crond 这个程序的 type 是 crond_t ， 能不能找一下 crond_t 能够读取的文件 SELinux type 有哪些呢？
+
+```
+[root@study ~]# sesearch [-A] [-s 主体类别] [-t 目标类别] [-b 布林值]
+选项与参数：
+-A  ：列出后面数据中，允许“读取或放行”的相关数据
+-t  ：后面还要接类别，例如 -t httpd_t
+-b  ：后面还要接SELinux的规则，例如 -b httpd_enable_ftp_server
+
+范例一：找出 crond_t 这个主体程序能够读取的文件 SELinux type
+[root@study ~]# sesearch -A -s crond_t &#124; grep spool
+   allow crond_t system_cron_spool_t : file { ioctl read write create getattr ..
+   allow crond_t system_cron_spool_t : dir { ioctl read getattr lock search op..
+   allow crond_t user_cron_spool_t : file { ioctl read write create getattr se..
+   allow crond_t user_cron_spool_t : dir { ioctl read write getattr lock add_n..
+   allow crond_t user_cron_spool_t : lnk_file { read getattr } ;
+# allow 后面接主体程序以及文件的 SELinux type，上面的数据是撷取出来的，
+# 意思是说，crond_t 可以读取 system_cron_spool_t 的文件/目录类型～等等！
+
+范例二：找出 crond_t 是否能够读取 /etc/cron.d/checktime 这个我们自订的配置文件？
+[root@study ~]# ll -Z /etc/cron.d/checktime
+-rw-r--r--. root root unconfined_u:object_r:admin_home_t:s0 /etc/cron.d/checktime
+# 两个重点，一个是 SELinux type 为 admin_home_t，一个是文件 （file）
+
+[root@study ~]# sesearch -A -s crond_t &#124; grep admin_home_t
+   allow domain admin_home_t : dir { getattr search open } ;
+   allow domain admin_home_t : lnk_file { read getattr } ;
+   allow crond_t admin_home_t : dir { ioctl read getattr lock search open } ;
+   allow crond_t admin_home_t : lnk_file { read getattr } ;
+# 仔细看！看仔细～虽然有 crond_t admin_home_t 存在，但是这是总体的信息，
+# 并没有针对某些规则的寻找～所以还是不确定 checktime 能否被读取。但是，基本上就是 SELinux
+# type 出问题～因此才会无法读取的！
+```
+
+所以，现在我们知道 /etc/cron.d/checktime 这个我们自己复制过去的文件会没有办法被读取的原因，就是因为 SELinux type 错误啦！ 根本就无法被读取～好～那现在我们来查一查，那 getsebool -a 里面看到的 httpd_enable_homedirs 到底是什么？又是规范了哪些主体程序能够读取的 SELinux type 呢？
+
+```
+[root@study ~]# semanage boolean -l &#124; grep httpd_enable_homedirs
+SELinux boolean                State  Default Description
+httpd_enable_homedirs          （off  ,  off）  Allow httpd to enable homedirs
+# httpd_enable_homedirs 的功能是允许 httpd 程序去读取使用者主文件夹的意思～
+
+[root@study ~]# sesearch -A -b httpd_enable_homedirs
+范例三：列出 httpd_enable_homedirs 这个规则当中，主体程序能够读取的文件 SELinux type
+Found 43 semantic av rules:
+   allow httpd_t home_root_t : dir { ioctl read getattr lock search open } ;
+   allow httpd_t home_root_t : lnk_file { read getattr } ;
+   allow httpd_t user_home_type : dir { getattr search open } ;
+   allow httpd_t user_home_type : lnk_file { read getattr } ;
+....（后面省略）....
+# 从上面的数据才可以理解，在这个规则中，主要是放行 httpd_t 能否读取使用者主文件夹的文件！
+# 所以，如果这个规则没有启动，基本上， httpd_t 这种程序就无法读取使用者主文件夹下的文件！
+```
+
+- 修改 SELinux 规则的布林值 setsebool
+
+那么如果查询到某个 SELinux rule，并且以 sesearch 知道该规则的用途后，想要关闭或启动他，又该如何处置？
+
+```
+[root@study ~]# setsebool  [-P]  “规则名称” [0&#124;1]
+选项与参数：
+-P  ：直接将设置值写入配置文件，该设置数据未来会生效的！
+
+范例一：查询 httpd_enable_homedirs 这个规则的状态，并且修改这个规则成为不同的布林值
+[root@study ~]# getsebool httpd_enable_homedirs
+httpd_enable_homedirs --&gt; off  &lt;==结果是 off ，依题意给他启动看看！
+
+[root@study ~]# setsebool -P httpd_enable_homedirs 1 # 会跑很久很久！请耐心等待！
+[root@study ~]# getsebool httpd_enable_homedirs
+httpd_enable_homedirs --&gt; on
+```
+
+这个 setsebool 最好记得一定要加上 -P 的选项！因为这样才能将此设置写入配置文件！ 这是非常棒的工具组！你一定要知道如何使用 getsebool 与 setsebool 才行！
+
+
 
 ### 16.5.5 SELinux 安全本文的修改
 
 可以使用 `chcon` 手动修改文件的 SELinux 类型，也可以使用 `restorecon` 恢复文件的默认 SELinux 类型。
 
 ```
-bash复制代码chcon -t 类型 文件
+chcon -t 类型 文件
 restorecon -Rv 目录
 ```
 
 使用 `semanage` 可以查询和修改默认目录的安全性本文。
 
 ```
-bash复制代码semanage fcontext -l
+semanage fcontext -l
 semanage fcontext -a -t 类型 目录
 restorecon -Rv 目录
 ```
+
+#### 原文：
+
+再次的回到[图 16.5.4](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html#fig16.5.4) 上头去，现在我们知道 SELinux 对受限的主体程序有没有影响，第一关考虑 SELinux 的三种类型，第二关考虑 SELinux 的政策规则是否放行，第三关则是开始比对 SELinux type 啦！从刚刚 16.5.4 小节我们也知道可以通过 sesearch 来找到主体程序与文件的 SELinux type 关系！ 好，现在总算要来修改文件的 SELinux type，以让主体程序能够读到正确的文件啊！这时就得要几个重要的小东西了～来瞧瞧～
+
+- 使用 chcon 手动修改文件的 SELinux type
+
+```
+[root@study ~]# chcon [-R] [-t type] [-u user] [-r role] 文件
+[root@study ~]# chcon [-R] --reference=范例档 文件
+选项与参数：
+-R  ：连同该目录下的次目录也同时修改；
+-t  ：后面接安全性本文的类型字段！例如 httpd_sys_content_t ；
+-u  ：后面接身份识别，例如 system_u； （不重要）
+-r  ：后面街角色，例如 system_r；     （不重要）
+-v  ：若有变化成功，请将变动的结果列出来
+--reference=范例档：拿某个文件当范例来修改后续接的文件的类型！
+
+范例一：查询一下 /etc/hosts 的 SELinux type，并将该类型套用到 /etc/cron.d/checktime 上
+[root@study ~]# ll -Z /etc/hosts
+-rw-r--r--. root root system_u:object_r:net_conf_t:s0  /etc/hosts
+[root@study ~]# chcon -v -t net_conf_t /etc/cron.d/checktime
+changing security context of ‘/etc/cron.d/checktime’
+[root@study ~]# ll -Z /etc/cron.d/checktime
+-rw-r--r--. root root unconfined_u:object_r:net_conf_t:s0 /etc/cron.d/checktime
+
+范例二：直接以 /etc/shadow SELinux type 套用到 /etc/cron.d/checktime 上！
+[root@study ~]# chcon -v --reference=/etc/shadow /etc/cron.d/checktime
+[root@study ~]# ll -Z /etc/shadow /etc/cron.d/checktime
+-rw-r--r--. root root system_u:object_r:shadow_t:s0    /etc/cron.d/checktime
+----------. root root system_u:object_r:shadow_t:s0    /etc/shadow
+```
+
+上面的练习“都没有正确的解答！”因为正确的 SELinux type 应该就是要以 /etc/cron.d/ 下面的文件为标准来处理才对啊～ 好了～既然如此～能不能让 SELinux 自己解决默认目录下的 SELinux type 呢？可以！就用 restorecon 吧！
+
+- 使用 restorecon 让文件恢复正确的 SELinux type
+
+```
+[root@study ~]# restorecon [-Rv] 文件或目录
+选项与参数：
+-R  ：连同次目录一起修改；
+-v  ：将过程显示到屏幕上
+
+范例三：将 /etc/cron.d/ 下面的文件通通恢复成默认的 SELinux type！
+[root@study ~]# restorecon -Rv /etc/cron.d
+restorecon reset /etc/cron.d/checktime context system_u:object_r:shadow_t:s0-&gt;
+system_u:object_r:system_cron_spool_t:s0
+# 上面这两行其实是同一行喔！表示将 checktime 由 shadow_t 改为 system_cron_spool_t
+
+范例四：重新启动 crond 看看有没有正确启动 checktime 啰！？
+[root@study ~]# systemctl restart crond
+[root@study ~]# tail /var/log/cron
+# 再去瞧瞧这个 /var/log/cron 的内容，应该就没有错误讯息了
+```
+
+其实，鸟哥几乎已经忘了 chcon 这个指令了！因为 restorecon 主动的回复默认的 SELinux type 要简单很多！而且可以一口气恢复整个目录下的文件！ 所以，鸟哥建议你几乎只要记得 restorecon 搭配 -Rv 同时加上某个目录这样的指令串即可～修改 SELinux 的 type 就变得非常的轻松啰！
+
+- semanage 默认目录的安全性本文查询与修改
+
+你应该要觉得奇怪，为什么 restorecon 可以“恢复”原本的 SELinux type 呢？那肯定就是有个地方在纪录每个文件/目录的 SELinux 默认类型啰？ 没错！是这样～那要如何 （1）查询默认的 SELinux type 以及 （2）如何增加/修改/删除默认的 SELinux type 呢？很简单～通过 semanage 即可！他是这样使用的：
+
+```
+[root@study ~]# semanage {login&#124;user&#124;port&#124;interface&#124;fcontext&#124;translation} -l
+[root@study ~]# semanage fcontext -{a&#124;d&#124;m} [-frst] file_spec
+选项与参数：
+fcontext ：主要用在安全性本文方面的用途， -l 为查询的意思；
+-a ：增加的意思，你可以增加一些目录的默认安全性本文类型设置；
+-m ：修改的意思；
+-d ：删除的意思。
+
+范例一：查询一下 /etc /etc/cron.d 的默认 SELinux type 为何？
+[root@study ~]# semanage fcontext -l &#124; grep -E '^/etc &#124;^/etc/cron'
+SELinux fcontext         type               Context
+/etc                     all files          system_u:object_r:etc_t:s0
+/etc/cron\.d（/.*）?       all files          system_u:object_r:system_cron_spool_t:s0
+```
+
+看到上面输出的最后一行，那也是为啥我们直接使用 vim 去 /etc/cron.d 下面创建新文件时，默认的 SELinux type 就是正确的！ 同时，我们也会知道使用 restorecon 回复正确的 SELinux type 时，系统会去判断默认的类型为何的依据。现在让我们来想一想， 如果 （当然是假的！不可能这么干） 我们要创建一个 /srv/mycron 的目录，这个目录默认也是需要变成 system_cron_spool_t 时， 我们应该要如何处理呢？基本上可以这样作：
+
+```
+# 1\. 先创建 /srv/mycron 同时在内部放入配置文件，同时观察 SELinux type
+[root@study ~]# mkdir /srv/mycron
+[root@study ~]# cp /etc/cron.d/checktime /srv/mycron
+[root@study ~]# ll -dZ /srv/mycron /srv/mycron/checktime
+drwxr-xr-x. root root unconfined_u:object_r:var_t:s0   /srv/mycron
+-rw-r--r--. root root unconfined_u:object_r:var_t:s0   /srv/mycron/checktime
+
+# 2\. 观察一下上层 /srv 的 SELinux type
+[root@study ~]# semanage fcontext -l &#124; grep '^/srv'
+SELinux fcontext         type               Context
+/srv                     all files          system_u:object_r:var_t:s0
+# 怪不得 mycron 会是 var_t 啰！
+
+# 3\. 将 mycron 默认值改为 system_cron_spool_t 啰！
+[root@study ~]# semanage fcontext -a -t system_cron_spool_t "/srv/mycron（/.*）?"
+[root@study ~]# semanage fcontext -l &#124; grep '^/srv/mycron'
+SELinux fcontext         type               Context
+/srv/mycron（/.*）?        all files          system_u:object_r:system_cron_spool_t:s0
+
+# 4\. 恢复 /srv/mycron 以及子目录相关的 SELinux type 喔！
+[root@study ~]# restorecon -Rv /srv/mycron
+[root@study ~]# ll -dZ /srv/mycron /srv/mycron/*
+drwxr-xr-x. root root unconfined_u:object_r:system_cron_spool_t:s0 /srv/mycron
+-rw-r--r--. root root unconfined_u:object_r:system_cron_spool_t:s0 /srv/mycron/checktime
+# 有了默认值，未来就不会不小心被乱改了！这样比较妥当些～
+```
+
+semanage 的功能很多，不过鸟哥主要用到的仅有 fcontext 这个项目的动作而已。如上所示， 你可以使用 semanage 来查询所有的目录默认值，也能够使用他来增加默认值的设置！如果您学会这些基础的工具， 那么 SELinux 对你来说，也不是什么太难的咚咚啰！
+
+
 
 ### 16.5.6 一个网络服务案例及登录文件协助
 
 为了演示 SELinux 的实际应用，我们以 vsftpd FTP 服务器为例。通过配置 vsftpd，可以观察 SELinux 对 FTP 服务的影响，并使用相关工具解决权限问题。例如，修改 FTP 服务的 SELinux 规则或类型，以允许用户上传和下载文件。
 
 ```
-bash复制代码sealert -l 错误ID
+sealert -l 错误ID
 setsebool -P ftp_home_dir 1
 ```
 
 通过这些步骤，可以解决由于 SELinux 引起的网络服务问题，确保系统的安全性与稳定性。
+
+#### 原文：
+
+本章在 SELinux 小节当中谈到的各个指令中，尤其是 setsebool, chcon, restorecon 等，都是为了当你的某些网络服务无法正常提供相关功能时， 才需要进行修改的一些指令动作。但是，我们怎么知道哪个时候才需要进行这些指令的修改啊？我们怎么知道系统因为 SELinux 的问题导致网络服务不对劲啊？如果都要靠用户端连线失败才来哭诉，那也太没有效率了！所以，我们的 CentOS 7.x 有提供几支侦测的服务在登录 SELinux 产生的错误喔！那就是 auditd 与 setroubleshootd。
+
+- setroubleshoot --> 错误讯息写入 /var/log/messages
+
+几乎所有 SELinux 相关的程序都会以 se 为开头，这个服务也是以 se 为开头！而 troubleshoot 大家都知道是错误克服，因此这个 setroubleshoot 自然就得要启动他啦！这个服务会将关于 SELinux 的错误讯息与克服方法记录到 /var/log/messages 与 /var/log/setroubleshoot/* 里头，所以你一定得要启动这个服务才好。启动这个服务之前当然就是得要安装它啦！ 这玩意儿总共需要两个软件，分别是 setroublshoot 与 setroubleshoot-server，如果你没有安装，请自行使用 yum 安装吧！
+
+此外，原本的 SELinux 信息本来是以两个服务来记录的，分别是 auditd 与 setroubleshootd。既然是同样的信息，因此 CentOS 6.x （含 7.x） 以后将两者整合在 auditd 当中啦！所以，并没有 setroubleshootd 的服务存在了喔！因此，当你安装好了 setroubleshoot-server 之后，请记得要重新启动 auditd，否则 setroubleshootd 的功能不会被启动的。
+
+![鸟哥的图示](image/vbird_face-172282844782514.gif)
+
+**Tips** 事实上，CentOS 7.x 对 setroubleshootd 的运行方式是： （1）先由 auditd 去调用 audispd 服务， （2）然后 audispd 服务去启动 sedispatch 程序， （3）sedispatch 再将原本的 auditd 讯息转成 setroubleshootd 的讯息，进一步储存下来的！
+
+```
+[root@study ~]# rpm -qa &#124; grep setroubleshoot
+setroubleshoot-plugins-3.0.59-1.el7.noarch
+setroubleshoot-3.2.17-3.el7.x86_64
+setroubleshoot-server-3.2.17-3.el7.x86_64
+```
+
+在默认的情况下，这个 setroubleshoot 应该都是会安装的！是否正确安装可以使用上述的表格指令去查询。万一没有安装，请使用 yum install 去安装吧！ 再说一遍，安装完毕最好重新启动 auditd 这个服务喔！不过，刚刚装好且顺利启动后， setroubleshoot 还是不会有作用，为啥？ 因为我们并没有任何受限的网络服务主体程序在运行啊！所以，下面我们将使用一个简单的 FTP 服务器软件为例，让你了解到我们上头讲到的许多重点的应用！
+
+- 实例状况说明：通过 vsftpd 这个 FTP 服务器来存取系统上的文件
+
+现在的年轻小伙子们传数据都用 line, FB, dropbox, google 云端磁盘等等，不过在网络早期传送大容量的文件，还是以 FTP 这个协定为主！ 现在为了速度，经常有 p2p 的软件提供大容量文件的传输，但以鸟哥这个老人家来说，可能 FTP 传送数据还是比较有保障... 在 CentOS 7.x 的环境下，达成 FTP 的默认服务器软件主要是 vsftpd 这一支喔！
+
+详细的 FTP 协定我们在服务器篇再来谈，这里只是简单的利用 vsftpd 这个软件与 FTP 的协定来讲解 SELinux 的问题与错误克服而已。 不过既然要使用到 FTP 协定，一些简单的知识还是得要存在才好！否则等一下我们没有办法了解为啥要这么做！ 首先，你得要知道，用户端需要使用“FTP 帐号登陆 FTP 服务器”才行！而有一个称为“匿名 （anonymous） ”的帐号可以登陆系统！ 但是这个匿名的帐号登陆后，只能存取某一个特定的目录，而无法脱离该目录～！
+
+在 vsftpd 中，一般用户与匿名者的主文件夹说明如下：
+
+- 匿名者：如果使用浏览器来连线到 FTP 服务器的话，那默认就是使用匿名者登陆系统。而匿名者的主文件夹默认是在 /var/ftp 当中！ 同时，匿名者在主文件夹下只能下载数据，不能上传数据到 FTP 服务器。同时，匿名者无法离开 FTP 服务器的 /var/ftp 目录喔！
+- 一般 FTP 帐号：在默认的情况下，所有 UID 大于 1000 的帐号，都可以使用 FTP 来登陆系统！ 而登陆系统之后，所有的帐号都能够取得自己主文件夹下面的文件数据！当然默认是可以上传、下载文件的！
+
+为了避免跟之前章节的用户产生误解的情况，这里我们先创建一个名为 ftptest 的帐号，且帐号密码为 myftp123， 先来创建一下吧！
+
+```
+[root@study ~]# useradd -s /sbin/nologin ftptest
+[root@study ~]# echo "myftp123" &#124; passwd --stdin ftptest
+```
+
+接下来当然就是安装 vsftpd 这只服务器软件，同时启动这只服务，另外，我们也希望未来开机都能够启动这只服务！ 因此需要这样做 （鸟哥假设你的 CentOS 7.x 的原版光盘已经挂载于 /mnt 了喔！）：
+
+```
+[root@study ~]# yum install /mnt/Packages/vsftpd-3*
+[root@study ~]# systemctl start vsftpd
+[root@study ~]# systemctl enable vsftpd
+[root@study ~]# netstat -tlnp
+Active Internet connections （only servers）
+Proto Recv-Q Send-Q Local Address   Foreign Address   State   PID/Program name
+tcp        0      0 0.0.0.0:22      0.0.0.0:*         LISTEN  1326/sshd
+tcp        0      0 127.0.0.1:25    0.0.0.0:*         LISTEN  2349/master
+tcp6       0      0 :::21           :::*              LISTEN  6256/vsftpd
+tcp6       0      0 :::22           :::*              LISTEN  1326/sshd
+tcp6       0      0 ::1:25          :::*              LISTEN  2349/master
+# 要注意看，上面的特殊字体那行有出现，才代表 vsftpd 这只服务有启动喔！！
+```
+
+- 匿名者无法下载的问题
+
+现在让我们来仿真一些 FTP 的常用状态！假设你想要将 /etc/securetty 以及主要的 /etc/sysctl.conf 放置给所有人下载， 那么你可能会这样做！
+
+```
+[root@study ~]# cp -a /etc/securetty /etc/sysctl.conf /var/ftp/pub
+[root@study ~]# ll /var/ftp/pub
+-rw-------. 1 root root 221 Oct 29  2014 securetty    # 先假设你没有看到这个问题！
+-rw-r--r--. 1 root root 225 Mar  6 11:05 sysctl.conf
+```
+
+一般来说，默认要给用户下载的 FTP 文件会放置到上面表格当中的 /var/ftp/pub 目录喔！现在让我们使用简单的终端机浏览器 curl 来观察看看！ 看你能不能查询到上述两个文件的内容呢？
+
+```
+# 1\. 先看看 FTP 根目录下面有什么文件存在？
+[root@study ~]# curl ftp://localhost
+drwxr-xr-x    2 0        0              40 Aug 08 00:51 pub
+# 确实有存在一个名为 pub 的文件喔！那就是在 /var/ftp 下面的 pub 啰！
+
+# 2\. 再往下看看，能不能看到 pub 内的文件呢？
+[root@study ~]# curl ftp://localhost/pub/  # 因为是目录，要加上 / 才好！
+-rw-------    1 0        0             221 Oct 29  2014 securetty
+-rw-r--r--    1 0        0             225 Mar 06 03:05 sysctl.conf
+
+# 3\. 承上，继续看一下 sysctl.conf 的内容好了！
+[root@study ~]# curl ftp://localhost/pub/sysctl.conf
+# System default settings live in /usr/lib/sysctl.d/00-system.conf.
+# To override those settings, enter new settings here, or in an /etc/sysctl.d/&lt;name&gt;.conf file
+#
+# For more information, see sysctl.conf（5） and sysctl.d（5）.
+# 真的有看到这个文件的内容喔！所以确定是可以让 vsftpd 读取到这文件的！
+
+# 4\. 再来瞧瞧 securetty 好了！
+[root@study ~]# curl ftp://localhost/pub/securetty
+curl: （78） RETR response: 550
+# 看不到耶！但是，基本的原因应该是权限问题喔！因为 vsftpd 默认放在 /var/ftp/pub 内的数据，
+# 不论什么 SELinux type 几乎都可以被读取的才对喔！所以要这样处理！
+
+# 5\. 修订权限之后再一次观察 securetty 看看！
+[root@study ~]# chmod a+r /var/ftp/pub/securetty
+[root@study ~]# curl ftp://localhost/pub/securetty
+# 此时你就可以看到实际的文件内容啰！
+
+# 6\. 修订 SELinux type 的内容 （非必备）
+[root@study ~]# restorecon -Rv /var/ftp
+```
+
+上面这个例子在告诉你，要先从权限的角度来瞧一瞧，如果无法被读取，可能就是因为没有 r 或没有 rx 啰！并不一定是由 SELinux 引起的！ 了解乎？好～再来瞧瞧如果是一般帐号呢？如何登陆？
+
+- 无法从主文件夹下载文件的问题分析与解决
+
+我们前面创建了 ftptest 帐号，那如何使用文字界面来登陆呢？就使用如下的方式来处理。同时请注意，因为文字体的 FTP 用户端软件， 默认会将用户丢到根目录而不是主文件夹，因此，你的 URL 可能需要修订一下如下！
+
+```
+# 0\. 为了让 curl 这个文字浏览器可以传输数据，我们先创建一些数据在 ftptest 主文件夹
+[root@study ~]# echo "testing" &gt; ~ftptest/test.txt
+[root@study ~]# cp -a /etc/hosts /etc/sysctl.conf ~ftptest/
+[root@study ~]# ll ~ftptest/
+-rw-r--r--. 1 root root 158 Jun  7  2013 hosts
+-rw-r--r--. 1 root root 225 Mar  6 11:05 sysctl.conf
+-rw-r--r--. 1 root root   8 Aug  9 01:05 test.txt
+
+# 1\. 一般帐号直接登陆 FTP 服务器，同时变换目录到主文件夹去！
+[root@study ~]# curl ftp://ftptest:myftp123@localhost/~/
+-rw-r--r--    1 0        0             158 Jun 07  2013 hosts
+-rw-r--r--    1 0        0             225 Mar 06 03:05 sysctl.conf
+-rw-r--r--    1 0        0               8 Aug 08 17:05 test.txt
+# 真的有数据～看文件最左边的权限也是没问题，所以，来读一下 test.txt 的内容看看
+
+# 2\. 开始下载 test.txt, sysctl.conf 等有权限可以阅读的文件看看！
+[root@study ~]# curl ftp://ftptest:myftp123@localhost/~/test.txt
+curl: （78） RETR response: 550
+# 竟然说没有权限！明明我们的 rwx 是正常没问题！那是否有可能是 SELinux 造成的？
+
+# 3\. 先将 SELinux 从 Enforce 转成 Permissive 看看情况！同时观察登录文件
+[root@study ~]# setenforce 0
+[root@study ~]# curl ftp://ftptest:myftp123@localhost/~/test.txt
+testing
+[root@study ~]# setenforce 1  # 确定问题后，一定要转成 Enforcing 啊！
+# 确定有数据内容！所以，确定就是 SELinux 造成无法读取的问题～那怎办？要改规则？还是改 type？
+# 因为都不知道，所以，就检查一下登录文件看看有没有相关的信息可以提供给我们处理！
+
+[root@study ~]# vim /var/log/messages
+Aug  9 02:55:58 station3-39 setroubleshoot: SELinux is preventing /usr/sbin/vsftpd 
+ from lock access on the file /home/ftptest/test.txt. For complete SELinux messages. 
+ run sealert -l 3a57aad3-a128-461b-966a-5bb2b0ffa0f9
+Aug  9 02:55:58 station3-39 python: SELinux is preventing /usr/sbin/vsftpd from 
+ lock access on the file /home/ftptest/test.txt.
+
+*****  Plugin catchall_boolean （47.5 confidence） suggests   ******************
+
+If you want to allow ftp to home dir
+Then you must tell SELinux about this by enabling the 'ftp_home_dir' boolean.
+You can read 'None' man page for more details.
+Do
+setsebool -P ftp_home_dir 1
+
+*****  Plugin catchall_boolean （47.5 confidence） suggests   ******************
+
+If you want to allow ftpd to full access
+Then you must tell SELinux about this by enabling the 'ftpd_full_access' boolean.
+You can read 'None' man page for more details.
+Do
+setsebool -P ftpd_full_access 1
+
+*****  Plugin catchall （6.38 confidence） suggests   **************************
+.....（下面省略）.....
+# 基本上，你会看到有个特殊字体的部份，就是 sealert 那一行。虽然下面已经列出可能的解决方案了，
+# 就是一堆底线那些东西。至少就有三个解决方案 （最后一个没列出来），哪种才是正确的？
+# 为了了解正确的解决方案，我们还是还执行一下 sealert 那行吧！看看情况再说！
+
+# 4\. 通过 sealert 的解决方案来处理问题
+[root@study ~]# sealert -l 3a57aad3-a128-461b-966a-5bb2b0ffa0f9
+SELinux is preventing /usr/sbin/vsftpd from lock access on the file /home/ftptest/test.txt.
+
+# 下面说有 47.5% 的概率是由于这个原因所发生，并且可以使用 setsebool 去解决的意思！
+*****  Plugin catchall_boolean （47.5 confidence） suggests   ******************
+
+If you want to allow ftp to home dir
+Then you must tell SELinux about this by enabling the 'ftp_home_dir' boolean.
+You can read 'None' man page for more details.
+Do
+setsebool -P ftp_home_dir 1
+
+# 下面说也是有 47.5% 的概率是由此产生的！
+*****  Plugin catchall_boolean （47.5 confidence） suggests   ******************
+
+If you want to allow ftpd to full access
+Then you must tell SELinux about this by enabling the 'ftpd_full_access' boolean.
+You can read 'None' man page for more details.
+Do
+setsebool -P ftpd_full_access 1
+
+# 下面说，仅有 6.38% 的可信度是由这个情况产生的！
+*****  Plugin catchall （6.38 confidence） suggests   **************************
+
+If you believe that vsftpd should be allowed lock access on the test.txt file by default.
+Then you should report this as a bug.
+You can generate a local policy module to allow this access.
+Do
+allow this access for now by executing:
+# grep vsftpd /var/log/audit/audit.log &#124; audit2allow -M mypol
+# semodule -i mypol.pp
+
+# 下面就重要了！是整个问题发生的主因～最好还是稍微瞧一瞧！
+Additional Information:
+Source Context                system_u:system_r:ftpd_t:s0-s0:c0.c1023
+Target Context                unconfined_u:object_r:user_home_t:s0
+Target Objects                /home/ftptest/test.txt [ file ]
+Source                        vsftpd
+Source Path                   /usr/sbin/vsftpd
+Port                          &lt;Unknown&gt;
+Host                          station3-39.gocloud.vm
+Source RPM Packages           vsftpd-3.0.2-9.el7.x86_64
+Target RPM Packages
+Policy RPM                    selinux-policy-3.13.1-23.el7.noarch
+Selinux Enabled               True
+Policy Type                   targeted
+Enforcing Mode                Permissive
+Host Name                     station3-39.gocloud.vm
+Platform                      Linux station3-39.gocloud.vm 3.10.0-229.el7.x86_64
+                              #1 SMP Fri Mar 6 11:36:42 UTC 2015 x86_64 x86_64
+Alert Count                   3
+First Seen                    2015-08-09 01:00:12 CST
+Last Seen                     2015-08-09 02:55:57 CST
+Local ID                      3a57aad3-a128-461b-966a-5bb2b0ffa0f9
+
+Raw Audit Messages
+type=AVC msg=audit（1439060157.358:635）: avc:  denied  { lock } for  pid=5029 comm="vsftpd" 
+ path="/home/ftptest/test.txt" dev="dm-2" ino=141 scontext=system_u:system_r:ftpd_t:s0-s0:
+ c0.c1023 tcontext=unconfined_u:object_r:user_home_t:s0 tclass=file
+
+type=SYSCALL msg=audit（1439060157.358:635）: arch=x86_64 syscall=fcntl success=yes exit=0 
+ a0=4 a1=7 a2=7fffceb8cbb0 a3=0 items=0 ppid=5024 pid=5029 auid=4294967295 uid=1001 gid=1001
+ euid=1001 suid=1001 fsuid=1001 egid=1001 sgid=1001 fsgid=1001 tty=（none） ses=4294967295
+ comm=vsftpd exe=/usr/sbin/vsftpd subj=system_u:system_r:ftpd_t:s0-s0:c0.c1023 key=（null）
+
+Hash: vsftpd,ftpd_t,user_home_t,file,lock
+```
+
+经过上面的测试，现在我们知道主要的问题发生在 SELinux 的 type 不是 vsftpd_t 所能读取的原因～ 经过仔细观察 test.txt 文件的类型，我们知道他原本就是主文件夹，因此是 user_home_t 也没啥了不起的啊！是正确的～ 因此，分析两个比较可信 （47.5%） 的解决方案后，可能是与 ftp_home_dir 比较有关啊！所以，我们应该不需要修改 SELinux type， 修改的应该是 SELinux rules 才对！所以，这样做看看：
+
+```
+# 1\. 先确认一下 SELinux 的模式，然后再瞧一瞧能否下载 test.txt，最终使用处理方式来解决～
+[root@study ~]# getenforce
+Enforcing
+[root@study ~]# curl ftp://ftptest:myftp123@localhost/~/test.txt
+curl: （78） RETR response: 550
+# 确定还是无法读取的喔！
+[root@study ~]# setsebool -P ftp_home_dir 1
+[root@study ~]# curl ftp://ftptest:myftp123@localhost/~/test.txt
+testing
+# OK！太赞了！处理完毕！现在使用者可以在自己的主文件夹上传/下载文件了！
+
+# 2\. 开始下载其他文件试看看啰！
+[root@study ~]# curl ftp://ftptest:myftp123@localhost/~/sysctl.conf
+# System default settings live in /usr/lib/sysctl.d/00-system.conf.
+# To override those settings, enter new settings here, or in an /etc/sysctl.d/&lt;name&gt;.conf file
+#
+# For more information, see sysctl.conf（5） and sysctl.d（5）.
+```
+
+没问题喔！通过修改 SELinux rule 的布林值，现在我们就可以使用一般帐号在 FTP 服务来上传/下载数据啰！非常愉快吧！ 那万一我们还有其他的目录也想要通过 FTP 来提供这个 ftptest 用户上传与下载呢？往下瞧瞧～
+
+- 一般帐号用户从非正规目录上传/下载文件
+
+假设我们还想要提供 /srv/gogogo 这个目录给 ftptest 用户使用，那又该如何处理呢？假设我们都没有考虑 SELinux ， 那就是这样的情况：
+
+```
+# 1\. 先处理好所需要的目录数据
+[root@study ~]# mkdir /srv/gogogo
+[root@study ~]# chgrp ftptest /srv/gogogo
+[root@study ~]# echo "test" &gt; /srv/gogogo/test.txt
+
+# 2\. 开始直接使用 ftp 观察一下数据！
+[root@study ~]# curl ftp://ftptest:myftp123@localhost//srv/gogogo/test.txt
+curl: （78） RETR response: 550
+# 有问题喔！来瞧瞧登录文件怎么说！
+[root@study ~]# grep sealert /var/log/messages &#124; tail
+Aug  9 04:23:12 station3-39 setroubleshoot: SELinux is preventing /usr/sbin/vsftpd from
+ read access on the file test.txt. For complete SELinux messages. run sealert -l
+ 08d3c0a2-5160-49ab-b199-47a51a5fc8dd
+[root@study ~]# sealert -l 08d3c0a2-5160-49ab-b199-47a51a5fc8dd
+SELinux is preventing /usr/sbin/vsftpd from read access on the file test.txt.
+
+# 虽然这个可信度比较高～不过，因为会全部放行 FTP ，所以不太考虑！
+*****  Plugin catchall_boolean （57.6 confidence） suggests   ******************
+
+If you want to allow ftpd to full access
+Then you must tell SELinux about this by enabling the 'ftpd_full_access' boolean.
+You can read 'None' man page for more details.
+Do
+setsebool -P ftpd_full_access 1
+
+# 因为是非正规目录的使用，所以这边加上默认 SELinux type 恐怕会是比较正确的选择！
+*****  Plugin catchall_labels （36.2 confidence） suggests   *******************
+
+If you want to allow vsftpd to have read access on the test.txt file
+Then you need to change the label on test.txt
+Do
+# semanage fcontext -a -t FILE_TYPE 'test.txt'
+where FILE_TYPE is one of the following: NetworkManager_tmp_t, abrt_helper_exec_t, abrt_tmp_t,
+ abrt_upload_watch_tmp_t, abrt_var_cache_t, abrt_var_run_t, admin_crontab_tmp_t, afs_cache_t,
+ alsa_home_t, alsa_tmp_t, amanda_tmp_t, antivirus_home_t, antivirus_tmp_t, apcupsd_tmp_t, ...
+Then execute:
+restorecon -v 'test.txt'
+
+*****  Plugin catchall （7.64 confidence） suggests   **************************
+
+If you believe that vsftpd should be allowed read access on the test.txt file by default.
+Then you should report this as a bug.
+You can generate a local policy module to allow this access.
+Do
+allow this access for now by executing:
+# grep vsftpd /var/log/audit/audit.log &#124; audit2allow -M mypol
+# semodule -i mypol.pp
+
+Additional Information:
+Source Context                system_u:system_r:ftpd_t:s0-s0:c0.c1023
+Target Context                unconfined_u:object_r:var_t:s0
+Target Objects                test.txt [ file ]
+Source                        vsftpd
+.....（下面省略）.....
+```
+
+因为是非正规目录啊，所以感觉上似乎与 semanage 那一行的解决方案比较相关～接下来就是要找到 FTP 的 SELinux type 来解决啰！ 所以，让我们查一下 FTP 相关的数据啰！
+
+```
+# 3\. 先查看一下 /var/ftp 这个地方的 SELinux type 吧！
+[root@study ~]# ll -Zd /var/ftp
+drwxr-xr-x. root root system_u:object_r:public_content_t:s0 /var/ftp
+
+# 4\. 以 sealert 建议的方法来处理好 SELinux type 啰！
+[root@study ~]# semanage fcontext -a -t public_content_t "/srv/gogogo（/.*）?"
+[root@study ~]# restorecon -Rv /srv/gogogo
+[root@study ~]# curl ftp://ftptest:myftp123@localhost//srv/gogogo/test.txt
+test
+# 喔耶！终于再次搞定喔！
+```
+
+在这个范例中，我们是修改了 SELinux type 喔！与前一个修改 SELinux rule 不太一样！要理解理解喔！
+
+- 无法变更 FTP 连线端口问题分析与解决
+
+在某些情况下，可能你的服务器软件需要开放在非正规的端口，举例来说，如果因为某些政策问题，导致 FTP 启动的正常的 21 号端口无法使用， 因此你想要启用在 555 号端口时，该如何处理呢？基本上，既然 SELinux 的主体程序大多是被受限的网络服务，没道理不限制放行的端口啊！ 所以，很可能会出问题～那就得要想想办法才行！
+
+```
+# 1\. 先处理 vsftpd 的配置文件，加入换 port 的参数才行！
+[root@study ~]# vim /etc/vsftpd/vsftpd.conf
+# 请按下大写的 G 跑到最后一行，然后新增加下面这行设置！前面不可以留白！
+listen_port=555
+
+# 2\. 重新启动 vsftpd 并且观察登录文件的变化！
+[root@study ~]# systemctl restart vsftpd
+[root@study ~]# grep sealert /var/log/messages
+Aug  9 06:34:46 station3-39 setroubleshoot: SELinux is preventing /usr/sbin/vsftpd from
+ name_bind access on the tcp_socket port 555\. For complete SELinux messages. run
+ sealert -l 288118e7-c386-4086-9fed-2fe78865c704
+
+[root@study ~]# sealert -l 288118e7-c386-4086-9fed-2fe78865c704
+SELinux is preventing /usr/sbin/vsftpd from name_bind access on the tcp_socket port 555.
+
+*****  Plugin bind_ports （92.2 confidence） suggests   ************************
+
+If you want to allow /usr/sbin/vsftpd to bind to network port 555
+Then you need to modify the port type.
+Do
+# semanage port -a -t PORT_TYPE -p tcp 555
+    where PORT_TYPE is one of the following: certmaster_port_t, cluster_port_t,
+ ephemeral_port_t, ftp_data_port_t, ftp_port_t, hadoop_datanode_port_t, hplip_port_t,
+ port_t, postgrey_port_t, unreserved_port_t.
+.....（后面省略）.....
+# 看一下信任度，高达 92.2% 耶！几乎就是这家伙～因此不必再看～就是他了！比较重要的是，
+# 解决方案里面，那个 PORT_TYPE 有很多选择～但我们是要打开 FTP 端口嘛！所以，
+# 就由后续数据找到 ftp_port_t 那个项目啰！带入实验看看！
+
+# 3\. 实际带入 SELinux 端口修订后，在重新启动 vsftpd 看看
+[root@study ~]# semanage port -a -t ftp_port_t -p tcp 555
+[root@study ~]# systemctl restart vsftpd
+[root@study ~]# netstat -tlnp
+Active Internet connections （only servers）
+Proto Recv-Q Send-Q Local Address    Foreign Address   State    PID/Program name
+tcp        0      0 0.0.0.0:22       0.0.0.0:*         LISTEN   1167/sshd
+tcp        0      0 127.0.0.1:25     0.0.0.0:*         LISTEN   1598/master
+tcp6       0      0 :::555           :::*              LISTEN   8436/vsftpd
+tcp6       0      0 :::22            :::*              LISTEN   1167/sshd
+tcp6       0      0 ::1:25           :::*              LISTEN   1598/master
+
+# 4\. 实验看看这个 port 能不能用？
+[root@study ~]# curl ftp://localhost:555/pub/
+-rw-r--r--    1 0        0             221 Oct 29  2014 securetty
+-rw-r--r--    1 0        0             225 Mar 06 03:05 sysctl.conf
+```
+
+通过上面的几个小练习，你会知道在正规或非正规的环境下，如何处理你的 SELinux 问题哩！仔细研究看看啰！
+
+
 
 ## 16.6 重点回顾
 
