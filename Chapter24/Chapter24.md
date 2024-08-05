@@ -256,3 +256,415 @@ Linux 的核心目前是由其发明者 Linus Torvalds 所属团队在负责维�
 
 这些数据先大致有个印象即可，至少未来如果你想要使用 patch 的方法加入额外的新功能时， 你要将你的源代码放置于何处？这里就能够提供一些指引了。当然，最好还是跑到 Documentation 那个目录下面去瞧瞧正确的说明， 对你的核心编译会更有帮助喔！
 
+## 24.2 核心编译的前处理与核心功能选择
+
+编译核心需要进行前处理，以确保能正确管理硬件并提供系统核心功能。核心编译的关键是挑选适合的功能。以下是具体步骤：
+
+### 24.2.1 硬件环境检视与核心功能要求
+
+鸟哥的硬件环境如下：
+
+- CPU: Intel(R) Xeon(R) CPU E5-2650
+- 主板芯片组: KVM 虚拟化仿真主板 (Intel 440FX 相容)
+- 显卡: Red Hat, Inc. QXL paravirtual graphic card
+- 内存: 2.0GB
+- 硬盘: KVM Virtio 界面磁盘 40G
+- 网卡: Red Hat, Inc Virtio network device
+
+需求是配置成小型服务器环境，支持虚拟化、防火墙、WWW、FTP 等功能。
+
+### 24.2.2 保持干净源代码：make mrproper
+
+处理核心源代码的残留文件：
+
+```
+bash复制代码[root@study ~]# cd /usr/src/kernels/linux-3.10.89/
+[root@study linux-3.10.89]# make mrproper
+```
+
+- `make mrproper` 删除所有编译过程的目标文件和配置文件。
+- `make clean` 仅删除目标文件，不删除配置文件。
+
+### 24.2.3 开始挑选核心功能：make XXconfig
+
+挑选核心功能并生成配置文件：
+
+- `make menuconfig`: 文字模式下显示菜单，不需 X Window。
+- `make oldconfig`: 使用已存在的 .config 文件，简化选择过程。
+- `make xconfig`: 基于 Qt 的图形化接口，需要 X Window 支持。
+- `make gconfig`: 基于 Gtk 的图形化接口，需要 X Window 支持。
+- `make config`: 旧式条列式功能选择。
+
+通过既有设置来处理核心项目与功能选择：
+
+```
+bash
+复制代码
+[root@study linux-3.10.89]# cp /boot/config-3.10.0-229.11.1.el7.x86_64 .config
+```
+
+使用 `make menuconfig` 进行选择。菜单使用方法：
+
+- “上下方向键”选择项目，“左右方向键”移动至 <Select>, <Exit>, <Help>，按 Enter 确认。
+- 使用“空白键”选择功能，<M> 表示编译成模块，<*> 表示编译进核心。
+
+### 24.2.4 核心功能细项选择
+
+核心功能选择分为多个部分：
+
+1. **General setup**: 选择核心基本设置，如版本信息和压缩模式。
+
+   ```
+   bash复制代码(vbird)  Local version - append to kernel release
+   [*] Automatically append version information to the version string
+   Kernel compression mode (Bzip2)  --->
+   ```
+
+2. **Loadable module + block layer**: 启用可加载模块支持和块层支持。
+
+   ```
+   bash复制代码[*] Enable loadable module support  ---> 
+     [*] Forced module loading
+     [*] Module unloading
+   ```
+
+3. **CPU 类型与功能选择**: 设置 CPU 相关选项和虚拟化支持。
+
+   ```
+   bash复制代码Processor family (Generic-x86-64)  --->
+   [*] Linux guest support  --->
+   [*] Enable paravirtualization code
+   ```
+
+4. **电源管理功能**: 设置电源管理和 ACPI 选项。
+
+   ```
+   bash复制代码[*] ACPI (Advanced Configuration and Power Interface) Support  --->
+   CPU Frequency scaling  --->
+   <M>   CPU frequency translation statistics
+   ```
+
+5. **总线选项**: 设置 PCI、PCI-Express 和 PCMCIA 支持。
+
+   ```
+   bash复制代码[*] PCI support
+   [*] PCI Express support
+   ```
+
+6. **编译后可执行文件的格式**: 支持 ELF 二进制文件和其他格式。
+
+   ```
+   bash复制代码-*- Kernel support for ELF binaries
+   <M> Kernel support for MISC binaries
+   ```
+
+7. **核心的网络功能**: 设置网络支持和防火墙选项。
+
+   ```
+   bash复制代码--- Networking support
+   [*] Network packet filtering framework (Netfilter)  --->
+   ```
+
+8. **各项设备的驱动程序**: 设置硬件驱动程序，如 SATA、RAID 和网络设备。
+
+   ```
+   bash复制代码<M> Serial ATA and Parallel ATA drivers  --->
+   [*] Multiple devices driver support (RAID and LVM)  --->
+   ```
+
+9. **文件系统的支持**: 设置文件系统支持，如 ext3、ext4、XFS 和 NTFS。
+
+   ```
+   bash复制代码<M> The Extended 4 (ext4) filesystem
+   <M> XFS filesystem support
+   <M> NTFS file system support
+   ```
+
+10. **核心骇客、信息安全、密码应用**: 设置核心开发选项和安全选项。
+
+    ```
+    bash复制代码-*- Kernel hacking
+    --- Security options
+    ```
+
+11. **虚拟化与函数库**: 设置虚拟化支持和核心函数库。
+
+    ```
+    bash复制代码[*] Virtualization  --->
+    <M> Kernel-based Virtual Machine (KVM) support
+    ```
+
+保存设置：
+
+```
+bash
+复制代码
+# Save the configuration
+```
+
+## 总结
+
+编译核心的前处理和功能选择是确保系统稳定和高效运行的重要步骤。通过检查硬件环境、保持源代码干净和细致挑选核心功能，可以创建适合特定用途的定制核心。
+
+## 24.3 核心的编译与安装
+
+在完成核心功能选择后，下一步是编译和安装核心以及核心模块。编译完成后，需要配置 Grub 来使用新核心。
+
+### 24.3.1 编译核心与核心模块
+
+编译核心和模块的过程如下：
+
+```
+bash复制代码[root@study linux-3.10.89]# make -j 4 clean    # 清除暂存文件
+[root@study linux-3.10.89]# make -j 4 bzImage  # 编译核心
+[root@study linux-3.10.89]# make -j 4 modules  # 编译模块
+[root@study linux-3.10.89]# make -j 4 clean bzImage modules  # 连续编译所有部分
+```
+
+- `-j 4` 参数表示使用四个 CPU 核心进行并行编译，以加快速度。
+
+编译完成后，生成的核心文件位于 `/usr/src/kernels/linux-3.10.89/arch/x86/boot/bzImage`。
+
+### 24.3.2 实际安装模块
+
+安装模块到系统目录：
+
+```
+bash
+复制代码
+[root@study linux-3.10.89]# make modules_install
+```
+
+模块将安装到 `/lib/modules/` 目录下。为了避免模块冲突，可以在 `make menuconfig` 中更改 `General setup` 中的 `Local version`，以区分不同版本的模块目录。
+
+### 24.3.3 开始安装新核心与多重核心菜单（grub）
+
+将编译好的核心文件移动到 `/boot` 目录并保留旧核心：
+
+```
+bash复制代码[root@study linux-3.10.89]# cp arch/x86/boot/bzImage /boot/vmlinuz-3.10.89vbird
+[root@study linux-3.10.89]# cp .config /boot/config-3.10.89vbird
+[root@study linux-3.10.89]# chmod a+x /boot/vmlinuz-3.10.89vbird
+[root@study linux-3.10.89]# cp System.map /boot/System.map-3.10.89vbird
+[root@study linux-3.10.89]# gzip -c Module.symvers > /boot/symvers-3.10.89vbird.gz
+[root@study linux-3.10.89]# restorecon -Rv /boot
+```
+
+创建相对应的初始 RAM 磁盘（initrd）：
+
+```
+bash
+复制代码
+[root@study ~]# dracut -v /boot/initramfs-3.10.89vbird.img 3.10.89vbird
+```
+
+生成新的 Grub 配置文件：
+
+```
+bash复制代码[root@study ~]# grub2-mkconfig -o /boot/grub2/grub.cfg
+Generating grub configuration file ...
+Found linux image: /boot/vmlinuz-3.10.89vbird
+Found initrd image: /boot/initramfs-3.10.89vbird.img
+```
+
+确保新核心是默认启动项，然后重新启动系统。
+
+### 24.3.4 重新启动并测试新核心
+
+重新启动系统，选择新核心启动。启动后使用 `uname -a` 检查核心版本：
+
+```
+bash复制代码[root@study ~]# uname -a
+Linux study.centos.vbird 3.10.89vbird #1 SMP Tue Oct 20 09:09:11 CST 2015 x86_64 x86_64 x86_64 GNU/Linux
+```
+
+如果系统稳定运行，可以将新核心设为默认启动核心。
+
+## 总结
+
+通过编译和安装新核心，可以根据需要定制 Linux 核心功能。保留旧核心确保系统在新核心出现问题时仍可启动。通过 Grub 配置，可以方便地管理多个核心版本。
+
+## 24.4 额外（单一）核心模块编译
+
+在 Linux 系统中，核心模块用于扩展核心功能，类似于驱动程序。核心模块存放在 `/lib/modules/$(uname -r)/kernel/` 目录下，不同的硬件驱动程序则放置在 `/lib/modules/$(uname -r)/kernel/drivers/` 目录中。如果某个模块在初次编译时被遗漏或需要更新硬件厂商提供的驱动程序，可以通过重新编译单个模块来解决。
+
+### 24.4.1 编译前注意事项
+
+编译核心模块需要核心源代码提供的头文件和函数库。核心源代码通常放在 `/usr/src/` 下，编译模块前需确保安装了 `kernel-devel` 包。对于多个核心版本，核心源代码目录通过 `/lib/modules/$(uname -r)/build` 和 `/lib/modules/$(uname -r)/source` 链接到正确的位置。
+
+查看核心模块目录：
+
+```
+bash复制代码[root@study ~]# ll -h /lib/modules/3.10.89vbird/
+lrwxrwxrwx.  1 root root   30 Oct 20 14:27 build -> /usr/src/kernels/linux-3.10.89
+drwxr-xr-x. 11 root root 4.0K Oct 20 14:29 kernel
+-rw-r--r--.  1 root root 668K Oct 20 14:29 modules.alias
+-rw-r--r--.  1 root root 649K Oct 20 14:29 modules.alias.bin
+-rw-r--r--.  1 root root 5.8K Oct 20 14:27 modules.builtin
+-rw-r--r--.  1 root root 7.5K Oct 20 14:29 modules.builtin.bin
+-rw-r--r--.  1 root root 208K Oct 20 14:29 modules.dep
+-rw-r--r--.  1 root root 301K Oct 20 14:29 modules.dep.bin
+-rw-r--r--.  1 root root  316 Oct 20 14:29 modules.devname
+-rw-r--r--.  1 root root  81K Oct 20 14:27 modules.order
+-rw-r--r--.  1 root root  131 Oct 20 14:29 modules.softdep
+-rw-r--r--.  1 root root 269K Oct 20 14:29 modules.symbols
+-rw-r--r--.  1 root root 339K Oct 20 14:29 modules.symbols.bin
+lrwxrwxrwx.  1 root root   30 Oct 20 14:27 source -> /usr/src/kernels/linux-3.10.89
+```
+
+### 24.4.2 单一模块编译
+
+有两种常见情况需要重新编译模块：
+
+1. 默认核心未包含某个模块，且该模块可编译为独立模块。
+2. 核心源代码没有特定硬件的驱动程序，但硬件厂商提供了驱动程序源代码。
+
+#### 硬件开发商提供的额外模块
+
+下载并编译硬件厂商提供的驱动程序模块。例如，编译 Highpoint 的 RocketRAID RR640L 驱动程序：
+
+1. 解压并编译源代码：
+
+```
+bash复制代码[root@study ~]# cd /root/raidcard
+[root@study raidcard]# tar -zxvf RR64xl_Linux_Src_v1.3.9_15_03_07.tar.gz
+[root@study raidcard]# cd rr64xl-linux-src-v1.3.9/product/rr64xl/linux/
+[root@study linux]# make
+```
+
+1. 将编译好的模块放到正确的位置：
+
+```
+bash复制代码[root@study linux]# cp rr640l.ko /lib/modules/3.10.89vbird/kernel/drivers/scsi/
+[root@study linux]# depmod -a
+[root@study linux]# grep rr640 /lib/modules/3.10.89vbird/modules.dep
+```
+
+1. 测试载入模块：
+
+```
+bash
+复制代码
+[root@study linux]# modprobe rr640l
+```
+
+1. 如果需要在开机时加载模块，将模块加入 initramfs：
+
+```
+bash复制代码[root@study linux]# dracut --force -v --add-drivers rr640l /boot/initramfs-3.10.89vbird.img 3.10.89vbird
+[root@study linux]# lsinitrd /boot/initramfs-3.10.89vbird.img | grep rr640
+```
+
+#### 利用旧有的核心源代码进行编译
+
+如果忘记编译某个模块，可以使用 `make menuconfig` 添加功能后，只重新编译该模块。例如，编译 NTFS 模块：
+
+1. 进入核心源代码目录：
+
+```
+bash
+复制代码
+[root@study linux-3.10.89]# make menuconfig
+```
+
+1. 将 NTFS 选项设置为模块，然后编译：
+
+```
+bash
+复制代码
+[root@study linux-3.10.89]# make fs/ntfs/
+```
+
+1. 将模块复制到相应目录并更新模块依赖：
+
+```
+bash复制代码[root@study linux-3.10.89]# cp fs/ntfs/ntfs.ko /lib/modules/3.10.89vbird/kernel/fs/ntfs/
+[root@study linux-3.10.89]# depmod -a
+```
+
+### 24.4.3 核心模块管理
+
+核心与核心模块管理密不可分，驱动程序模块编译时依赖核心源代码。了解核心、核心模块、驱动程序模块、核心源代码及头文件的相关性，才能顺利编译和管理核心模块。核心更新时需重新编译模块，并通过 `modprobe` 和 `/etc/modprobe.conf` 配置管理模块加载。
+
+通过上述方法，可以灵活地添加和管理核心模块，以满足不同硬件和系统需求。
+
+## 24.5 以最新核心版本编译 CentOS 7.x 的核心
+
+如果需要使用最新的 4.x.y 版核心来实现某些特定功能，可以通过 ELRepo 网站提供的 SRPM 文件来重新编译打包核心。下面是具体步骤：
+
+### 24.5.1 下载和安装 ELRepo 的 SRPM 文件
+
+1. 从 ELRepo 网站下载不含源代码的 SRPM 文件，并安装：
+
+```
+bash复制代码[root@study ~]# wget http://elrepo.org/linux/kernel/el7/SRPMS/kernel-ml-4.2.3-1.el7.elrepo.nosrc.rpm
+[root@study ~]# rpm -ivh kernel-ml-4.2.3-1.el7.elrepo.nosrc.rpm
+```
+
+### 24.5.2 下载核心源代码
+
+1. 根据上述的 SRPM 文件，下载正确的核心源代码：
+
+```
+bash复制代码[root@study ~]# cd rpmbuild/SOURCES
+[root@study SOURCES]# wget https://cdn.kernel.org/pub/linux/kernel/v4.x/linux-4.2.3.tar.xz
+[root@study SOURCES]# ll -tr
+.....（前面省略）.....
+-rw-r--r--. 1 root root 85523884 Oct  3 19:58 linux-4.2.3.tar.xz
+-rw-rw-r--. 1 root root      294 Oct  3 22:04 cpupower.service
+-rw-rw-r--. 1 root root      150 Oct  3 22:04 cpupower.config
+-rw-rw-r--. 1 root root   162752 Oct  3 22:04 config-4.2.3-x86_64
+```
+
+### 24.5.3 修改核心功能设置
+
+1. 修改核心功能设置，启用需要的选项：
+
+```
+bash复制代码[root@study SOURCES]# vim config-4.2.3-x86_64
+# 在约第 5623 行找到以下行，并在其下添加一行：
+# CONFIG_VFIO_PCI_VGA is not set
+CONFIG_VFIO_PCI_VGA=y
+
+[root@study SOURCES]# cd ../SPECS
+[root@study SPECS]# vim kernel-ml-4.2.spec
+# 在约第 145 行找到以下行：
+Source0: ftp://ftp.kernel.org/pub/linux/kernel/v4.x/linux-%{LKAver}.tar.xz
+# 修改为：
+Source0: linux-%{LKAver}.tar.xz
+```
+
+### 24.5.4 编译并打包核心
+
+1. 开始编译并打包核心：
+
+```
+bash复制代码[root@study SPECS]# rpmbuild -bb kernel-ml-4.2.spec
+# 编译过程可能需要较长时间，请耐心等待。
+Wrote: /root/rpmbuild/RPMS/x86_64/kernel-ml-4.2.3-1.el7.centos.x86_64.rpm
+Wrote: /root/rpmbuild/RPMS/x86_64/kernel-ml-devel-4.2.3-1.el7.centos.x86_64.rpm
+Wrote: /root/rpmbuild/RPMS/x86_64/kernel-ml-headers-4.2.3-1.el7.centos.x86_64.rpm
+Wrote: /root/rpmbuild/RPMS/x86_64/perf-4.2.3-1.el7.centos.x86_64.rpm
+Wrote: /root/rpmbuild/RPMS/x86_64/python-perf-4.2.3-1.el7.centos.x86_64.rpm
+Wrote: /root/rpmbuild/RPMS/x86_64/kernel-ml-tools-4.2.3-1.el7.centos.x86_64.rpm
+Wrote: /root/rpmbuild/RPMS/x86_64/kernel-ml-tools-libs-4.2.3-1.el7.centos.x86_64.rpm
+Wrote: /root/rpmbuild/RPMS/x86_64/kernel-ml-tools-libs-devel-4.2.3-1.el7.centos.x86_64.rpm
+```
+
+### 24.5.5 安装新核心
+
+1. 使用 `yum install` 安装新的核心版本：
+
+```
+bash复制代码[root@study ~]# yum install /root/rpmbuild/RPMS/x86_64/kernel-ml-4.2.3-1.el7.centos.x86_64.rpm
+[root@study ~]# reboot
+```
+
+1. 验证安装：
+
+```
+bash复制代码[root@study ~]# uname -a
+Linux study.centos.vbird 4.2.3-1.el7.centos.x86_64 #1 SMP Wed Oct 21 02:31:18 CST 2015 x86_64 x86_64 x86_64 GNU/Linux
+```
+
+通过上述步骤，你可以在 CentOS 7.x 上安装和使用最新的 4.x.y 版本核心。这个过程不仅能够保证系统功能的完整性，还可以实现特定硬件和功能的支持。
