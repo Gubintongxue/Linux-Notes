@@ -1534,154 +1534,7 @@ unused devices: &lt;none&gt;  &lt;==看吧！确实不存在任何阵列设备�
 
 通过将PV、VG、LV的规划，最终利用`mkfs`将LV格式化为可用的文件系统。LVM允许文件系统容量在未来进行扩充或减少，而不影响其中的数据。
 
-### 14.3.2 LVM 实作流程
-
-#### 0. 磁盘阶段（实际的磁盘）
-
-首先，需要调整实际的磁盘分区，使其符合LVM的要求。
-
-```
-sh
-复制代码
-gdisk -l /dev/vda
-```
-
-调整分区ID为8e（Linux LVM），创建4个1GB的分区。
-
-#### 1. PV阶段
-
-创建PV并扫描系统中的PV：
-
-```
-sh复制代码pvcreate /dev/vda{5,6,7,8}
-pvscan
-pvdisplay /dev/vda5
-```
-
-#### 2. VG阶段
-
-创建VG并扩展VG：
-
-```
-sh复制代码vgcreate -s 16M vbirdvg /dev/vda{5,6,7}
-vgextend vbirdvg /dev/vda8
-vgdisplay vbirdvg
-```
-
-#### 3. LV阶段
-
-创建LV并扫描系统中的LV：
-
-```
-sh复制代码lvcreate -L 2G -n vbirdlv vbirdvg
-lvscan
-lvdisplay /dev/vbirdvg/vbirdlv
-```
-
-#### 4. 文件系统阶段
-
-格式化并挂载LV：
-
-```
-sh复制代码mkfs.xfs /dev/vbirdvg/vbirdlv
-mkdir /srv/lvm
-mount /dev/vbirdvg/vbirdlv /srv/lvm
-df -Th /srv/lvm
-```
-
-### 14.3.3 放大 LV 容量
-
-扩展LV的步骤：
-
-1. 确保VG有足够的剩余容量。
-2. 使用`lvresize`扩展LV。
-3. 使用`xfs_growfs`扩展文件系统。
-
-```
-sh复制代码lvresize -L +500M /dev/vbirdvg/vbirdlv
-xfs_growfs /srv/lvm
-df -Th /srv/lvm
-```
-
-### 14.3.4 使用 LVM thin Volume
-
-创建动态调整磁盘使用率的thin volume：
-
-```
-sh复制代码lvcreate -L 1G -T vbirdvg/vbirdtpool
-lvcreate -V 10G -T vbirdvg/vbirdtpool -n vbirdthin1
-mkfs.xfs /dev/vbirdvg/vbirdthin1
-mkdir /srv/thin
-mount /dev/vbirdvg/vbirdthin1 /srv/thin
-df -Th /srv/thin
-```
-
-### 14.3.5 LVM 的 LV 磁盘快照
-
-创建LV快照并使用：
-
-```
-sh复制代码lvcreate -s -l 26 -n vbirdsnap1 /dev/vbirdvg/vbirdlv
-lvdisplay /dev/vbirdvg/vbirdsnap1
-mkdir /srv/snapshot1
-mount -o nouuid /dev/vbirdvg/vbirdsnap1 /srv/snapshot1
-df -Th /srv/lvm /srv/snapshot1
-```
-
-#### 利用快照区复原系统
-
-备份和恢复文件系统：
-
-```
-sh复制代码xfsdump -l 0 -L lvm1 -M lvm1 -f /home/lvm.dump /srv/snapshot1
-umount /srv/snapshot1
-lvremove /dev/vbirdvg/vbirdsnap1
-umount /srv/lvm
-mkfs.xfs -f /dev/vbirdvg/vbirdlv
-mount /dev/vbirdvg/vbirdlv /srv/lvm
-xfsrestore -f /home/lvm.dump -L lvm1 /srv/lvm
-```
-
-### 14.3.6 LVM 相关指令汇整与 LVM 的关闭
-
-#### LVM相关指令汇整
-
-| 任务                  | PV阶段    | VG阶段     | LV阶段    | 文件系统（XFS / EXT4） |
-| --------------------- | --------- | ---------- | --------- | ---------------------- |
-| 搜寻（scan）          | pvscan    | vgscan     | lvscan    | lsblk, blkid           |
-| 创建（create）        | pvcreate  | vgcreate   | lvcreate  | mkfs.xfs, mkfs.ext4    |
-| 列出（display）       | pvdisplay | vgdisplay  | lvdisplay | df, mount              |
-| 增加（extend）        | vgextend  | lvextend   | lvresize  | xfs_growfs, resize2fs  |
-| 减少（reduce）        | vgreduce  | lvreduce   | lvresize  | resize2fs              |
-| 删除（remove）        | pvremove  | vgremove   | lvremove  | umount, 重新格式化     |
-| 改变容量（resize）    | lvresize  | xfs_growfs | resize2fs |                        |
-| 改变属性（attribute） | pvchange  | vgchange   | lvchange  | /etc/fstab, remount    |
-
-#### LVM的关闭
-
-关闭并移除LVM：
-
-```
-sh复制代码umount /srv/lvm /srv/thin /srv/snapshot1
-lvremove /dev/vbirdvg/vbirdthin1 /dev/vbirdvg/vbirdtpool /dev/vbirdvg/vbirdlv
-vgchange -a n vbirdvg
-vgremove vbirdvg
-pvremove /dev/vda{5,6,7,8}
-```
-
-通过上述步骤，可以灵活管理LVM，实现文件系统的扩展、缩小和备份等功能，同时也能够正确关闭和移除LVM，确保系统的稳定性和数据的安全性。
-
-
-
-原文：
-
-## 14.3 逻辑卷轴管理员 （Logical Volume Manager）
-
-想像一个情况，你在当初规划主机的时候将 /home 只给他 50G ，等到使用者众多之后导致这个 filesystem 不够大， 此时你能怎么作？多数的朋友都是这样：再加一颗新硬盘，然后重新分区、格式化，将 /home 的数据完整的复制过来， 然后将原本的 partition 卸载重新挂载新的 partition 。啊！好忙碌啊！若是第二次分区却给的容量太多！导致很多磁盘容量被浪费了！ 你想要将这个 partition 缩小时，又该如何作？将上述的流程再搞一遍！唉～烦死了，尤其复制很花时间ㄟ～有没有更简单的方法呢？ 有的！那就是我们这个小节要介绍的 LVM 这玩意儿！
-
-LVM 的重点在于“可以弹性的调整 filesystem 的容量！”而并非在于性能与数据保全上面。 需要文件的读写性能或者是数据的可靠性，请参考前面的 RAID 小节。 LVM 可以整合多个实体 partition 在一起， 让这些 partitions 看起来就像是一个磁盘一样！而且，还可以在未来新增或移除其他的实体 partition 到这个 LVM 管理的磁盘当中。 如此一来，整个磁盘空间的使用上，实在是相当的具有弹性啊！ 既然 LVM 这么好用，那就让我们来瞧瞧这玩意吧！
-
-### 14.3.1 什么是 LVM： PV, PE, VG, LV 的意义
+#### 原文：
 
 LVM 的全名是 Logical Volume Manager，中文可以翻译作逻辑卷轴管理员。之所以称为“卷轴”可能是因为可以将 filesystem 像卷轴一样伸长或缩短之故吧！LVM 的作法是将几个实体的 partitions （或 disk） 通过软件组合成为一块看起来是独立的大磁盘 （VG） ，然后将这块大磁盘再经过分区成为可使用分区 （LV）， 最终就能够挂载使用了。但是为什么这样的系统可以进行 filesystem 的扩充或缩小呢？其实与一个称为 PE 的项目有关！ 下面我们就得要针对这几个项目来好好聊聊！
 
@@ -1703,7 +1556,7 @@ LVM 默认使用 4MB 的 PE 区块，而 LVM 的 LV 在 32 位系统上最多仅
 
 此外，我们刚刚有谈到 LVM 可弹性的变更 filesystem 的容量，那是如何办到的？其实他就是通过“交换 PE ”来进行数据转换， 将原本 LV 内的 PE 移转到其他设备中以降低 LV 容量，或将其他设备的 PE 加到此 LV 中以加大容量！ VG、LV 与 PE 的关系有点像下图：
 
-![PE 与 VG 的相关性图示](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/content/img/pe_vg.gif)图14.3.1、PE 与 VG 的相关性图示
+![PE 与 VG 的相关性图示](image/pe_vg.gif)图14.3.1、PE 与 VG 的相关性图示
 
 如上图所示，VG 内的 PE 会分给虚线部分的 LV，如果未来这个 VG 要扩充的话，加上其他的 PV 即可。 而最重要的 LV 如果要扩充的话，也是通过加入 VG 内没有使用到的 PE 来扩充的！
 
@@ -1711,7 +1564,7 @@ LVM 默认使用 4MB 的 PE 区块，而 LVM 的 LV 在 32 位系统上最多仅
 
 通过 PV, VG, LV 的规划之后，再利用 [mkfs](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html#mkfs) 就可以将你的 LV 格式化成为可以利用的文件系统了！而且这个文件系统的容量在未来还能够进行扩充或减少， 而且里面的数据还不会被影响！实在是很“福气啦！”那实作方面要如何进行呢？很简单呢！ 整个流程由基础到最终的结果可以这样看：
 
-![LVM 各元件的实现流程图示](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/content/img/centos7_lvm.jpg)图14.3.2、LVM 各元件的实现流程图示
+![LVM 各元件的实现流程图示](image/centos7_lvm.jpg)图14.3.2、LVM 各元件的实现流程图示
 
 如此一来，我们就可以利用 LV 这个玩意儿来进行系统的挂载了。不过，你应该要觉得奇怪的是， 那么我的数据写入这个 LV 时，到底他是怎么写入硬盘当中的？ 呵呵！好问题～其实，依据写入机制的不同，而有两种方式：
 
@@ -1720,7 +1573,62 @@ LVM 默认使用 4MB 的 PE 区块，而 LVM 的 LV 在 32 位系统上最多仅
 
 基本上，LVM 最主要的用处是在实现一个可以弹性调整容量的文件系统上， 而不是在创建一个性能为主的磁盘上，所以，我们应该利用的是 LVM 可以弹性管理整个 partition 大小的用途上，而不是着眼在性能上的。因此， LVM 默认的读写模式是线性模式啦！ 如果你使用 triped 模式，要注意，当任何一个 partition “归天”时，所有的数据都会“损毁”的！ 所以啦，不是很适合使用这种模式啦！如果要强调性能与备份，那么就直接使用 RAID 即可， 不需要用到 LVM 啊！
 
+
+
 ### 14.3.2 LVM 实作流程
+
+#### 0. 磁盘阶段（实际的磁盘）
+
+首先，需要调整实际的磁盘分区，使其符合LVM的要求。
+
+```
+gdisk -l /dev/vda
+```
+
+调整分区ID为8e（Linux LVM），创建4个1GB的分区。
+
+#### 1. PV阶段
+
+创建PV并扫描系统中的PV：
+
+```
+pvcreate /dev/vda{5,6,7,8}
+pvscan
+pvdisplay /dev/vda5
+```
+
+#### 2. VG阶段
+
+创建VG并扩展VG：
+
+```
+vgcreate -s 16M vbirdvg /dev/vda{5,6,7}
+vgextend vbirdvg /dev/vda8
+vgdisplay vbirdvg
+```
+
+#### 3. LV阶段
+
+创建LV并扫描系统中的LV：
+
+```
+lvcreate -L 2G -n vbirdlv vbirdvg
+lvscan
+lvdisplay /dev/vbirdvg/vbirdlv
+```
+
+#### 4. 文件系统阶段
+
+格式化并挂载LV：
+
+```
+mkfs.xfs /dev/vbirdvg/vbirdlv
+mkdir /srv/lvm
+mount /dev/vbirdvg/vbirdlv /srv/lvm
+df -Th /srv/lvm
+```
+
+#### 原文：
 
 LVM 必需要核心有支持且需要安装 lvm2 这个软件，好佳在的是， CentOS 与其他较新的 distributions 已经默认将 lvm 的支持与软件都安装妥当了！所以你不需要担心这方面的问题！用就对了！
 
@@ -1962,7 +1870,25 @@ Filesystem                  Type  Size  Used Avail Use% Mounted on
 
 通过这样的功能，我们现在已经创建好一个 LV 了！你可以自由的应用 /srv/lvm 内的所有资源！
 
+
+
+
+
 ### 14.3.3 放大 LV 容量
+
+扩展LV的步骤：
+
+1. 确保VG有足够的剩余容量。
+2. 使用`lvresize`扩展LV。
+3. 使用`xfs_growfs`扩展文件系统。
+
+```
+lvresize -L +500M /dev/vbirdvg/vbirdlv
+xfs_growfs /srv/lvm
+df -Th /srv/lvm
+```
+
+#### 原文：
 
 我们不是说 LVM 最大的特色就是弹性调整磁盘容量吗？好！那我们就来处理一下，如果要放大 LV 的容量时， 该如何进行完整的步骤呢？其实一点都不难喔！如果你回去看[图 14.3.2](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html#fig14.3.2) 的话，那么你会知道放大文件系统时， 需要下面这些流程的：
 
@@ -1972,7 +1898,7 @@ Filesystem                  Type  Size  Used Avail Use% Mounted on
 
 其中最后一个步骤最重要！我们在[第七章](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/Text/index.html)当中知道， 整个文件系统在最初格式化的时候就创建了 inode/block/superblock 等信息，要改变这些信息是很难的！ 不过因为文件系统格式化的时候创建的是多个 block group ，因此我们可以通过在文件系统当中增加 block group 的方式来增减文件系统的量！而增减 block group 就是利用 xfs_growfs 啰！所以最后一步是针对文件系统来处理的， 前面几步则是针对 LVM 的实际容量大小！
 
-![鸟哥的图示](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/content/img/vbird_face.gif)
+![鸟哥的图示](image/vbird_face-17228265685803.gif)
 
 **Tips** 因此，严格说起来，放大文件系统并不是没有进行“格式化”喔！放大文件系统时，格式化的位置在于该设备后来新增的部份，设备的前面已经存在的文件系统则没有变化。 而新增的格式化过的数据，再反馈回原本的 supberblock 这样而已！
 
@@ -2065,7 +1991,24 @@ drwxr-xr-x.  16 root root 4096 Jul 28 00:01 log
 
 最后，请注意！目前的 XFS 文件系统中，并没有缩小文件系统容量的设计！也就是说，文件系统只能放大不能缩小喔！如果你想要保有放大、缩小的本事， 那还请回去使用 EXT 家族最新的 EXT4 文件系统啰！XFS 目前是办不到的！
 
-### 14.3.4 使用 LVM thin Volume 让 LVM 动态自动调整磁盘使用率
+
+
+
+
+### 14.3.4 使用 LVM thin Volume
+
+创建动态调整磁盘使用率的thin volume：
+
+```
+lvcreate -L 1G -T vbirdvg/vbirdtpool
+lvcreate -V 10G -T vbirdvg/vbirdtpool -n vbirdthin1
+mkfs.xfs /dev/vbirdvg/vbirdthin1
+mkdir /srv/thin
+mount /dev/vbirdvg/vbirdthin1 /srv/thin
+df -Th /srv/thin
+```
+
+#### 原文：
 
 想像一个情况，你有个目录未来会使用到大约 5T 的容量，但是目前你的磁盘仅有 3T，问题是，接下来的两个月你的系统都还不会超过 3T 的容量， 不过你想要让用户知道，就是他最多有 5T 可以使用就是了！而且在一个月内你确实可以将系统提升到 5T 以上的容量啊！ 你又不想要在提升容量后才放大到 5T！那可以怎么办？呵呵！这时可以考虑“实际用多少才分配多少容量给 LV 的 LVM Thin Volume ”功能！
 
@@ -2145,11 +2088,41 @@ Filesystem                     Type  Size  Used Avail Use% Mounted on
 
 这就是用多少算多少的 thin pool 实作方式！基本上，用来骗人挺吓人的！小小的一个磁盘可以仿真出好多容量！但实际上，真的可用容量就是实际的磁盘储存池内的容量！ 如果突破该容量，这个 thin pool 可是会爆炸而让数据损毁的！要注意！要注意！
 
+
+
+
+
 ### 14.3.5 LVM 的 LV 磁盘快照
+
+创建LV快照并使用：
+
+```
+lvcreate -s -l 26 -n vbirdsnap1 /dev/vbirdvg/vbirdlv
+lvdisplay /dev/vbirdvg/vbirdsnap1
+mkdir /srv/snapshot1
+mount -o nouuid /dev/vbirdvg/vbirdsnap1 /srv/snapshot1
+df -Th /srv/lvm /srv/snapshot1
+```
+
+#### 利用快照区复原系统
+
+备份和恢复文件系统：
+
+```
+sh复制代码xfsdump -l 0 -L lvm1 -M lvm1 -f /home/lvm.dump /srv/snapshot1
+umount /srv/snapshot1
+lvremove /dev/vbirdvg/vbirdsnap1
+umount /srv/lvm
+mkfs.xfs -f /dev/vbirdvg/vbirdlv
+mount /dev/vbirdvg/vbirdlv /srv/lvm
+xfsrestore -f /home/lvm.dump -L lvm1 /srv/lvm
+```
+
+#### 原文：
 
 现在你知道 LVM 的好处咯，未来如果你有想要增加某个 LVM 的容量时，就可以通过这个放大的功能来处理。 那么 LVM 除了这些功能之外，还有什么能力呢？其实他还有一个重要的能力，那就是 LV 磁盘的快照 （snapshot）。 什么是 LV 磁盘快照啊？快照就是将当时的系统信息记录下来，就好像照相记录一般！ 未来若有任何数据更动了，则原始数据会被搬移到快照区，没有被更动的区域则由快照区与文件系统共享。 用讲的好像很难懂，我们用图解说明一下好了：
 
-![LVM 快照区域的备份示意图](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/content/img/snapshot.gif)图14.3.3、LVM 快照区域的备份示意图
+![LVM 快照区域的备份示意图](image/snapshot.gif)图14.3.3、LVM 快照区域的备份示意图
 
 左图为最初创建 LV 磁盘快照区的状况，LVM 会预留一个区域 （左图的左侧三个 PE 区块） 作为数据存放处。 此时快照区内并没有任何数据，而快照区与系统区共享所有的 PE 数据， 因此你会看到快照区的内容与文件系统是一模一样的。 等到系统运行一阵子后，假设 A 区域的数据被更动了 （上面右图所示），则更动前系统会将该区域的数据移动到快照区， 所以在右图的快照区被占用了一块 PE 成为 A，而其他 B 到 I 的区块则还是与文件系统共享！
 
@@ -2289,11 +2262,44 @@ drwxr-xr-x.  16 root root 4096 Jul 28 00:01 log
 
 换个角度来想想，我们将原本的 vbirdlv 当作备份数据，然后将 vbirdsnap1 当作实际在运行中的数据， 任何测试的动作都在 vbirdsnap1 这个快照区当中测试，那么当测试完毕要将测试的数据删除时，只要将快照区删去即可！ 而要复制一个 vbirdlv 的系统，再作另外一个快照区即可！这样是否非常方便啊？ 这对于教学环境中每年都要帮学生制作一个练习环境主机的测试，非常有帮助呢！
 
-![鸟哥的图示](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/content/img/vbird_face.gif)
+![鸟哥的图示](image/vbird_face-17228266617656.gif)
 
 **Tips** 以前鸟哥老是觉得使用 LVM 的快照来进行备份不太合理，因为还要制作一个备份文件！后来仔细研究并参考徐秉义老师的教材[[4\]](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/content/127.html#ps4)后，才发现 LVM 的快照实在是一个棒到不行的工具！尤其是在虚拟机当中创建多份给同学使用的测试环境， 你只要有一个基础的环境保持住，其他的环境使用快照来提供即可。实时同学将系统搞烂了，你只要将快照区删除， 再重建一个快照区！这样环境就恢复了！天呐！实在是太棒了！ ^_^
 
+
+
 ### 14.3.6 LVM 相关指令汇整与 LVM 的关闭
+
+#### LVM相关指令汇整
+
+| 任务                  | PV阶段    | VG阶段     | LV阶段    | 文件系统（XFS / EXT4） |
+| --------------------- | --------- | ---------- | --------- | ---------------------- |
+| 搜寻（scan）          | pvscan    | vgscan     | lvscan    | lsblk, blkid           |
+| 创建（create）        | pvcreate  | vgcreate   | lvcreate  | mkfs.xfs, mkfs.ext4    |
+| 列出（display）       | pvdisplay | vgdisplay  | lvdisplay | df, mount              |
+| 增加（extend）        | vgextend  | lvextend   | lvresize  | xfs_growfs, resize2fs  |
+| 减少（reduce）        | vgreduce  | lvreduce   | lvresize  | resize2fs              |
+| 删除（remove）        | pvremove  | vgremove   | lvremove  | umount, 重新格式化     |
+| 改变容量（resize）    | lvresize  | xfs_growfs | resize2fs |                        |
+| 改变属性（attribute） | pvchange  | vgchange   | lvchange  | /etc/fstab, remount    |
+
+#### LVM的关闭
+
+关闭并移除LVM：
+
+```
+sh复制代码umount /srv/lvm /srv/thin /srv/snapshot1
+lvremove /dev/vbirdvg/vbirdthin1 /dev/vbirdvg/vbirdtpool /dev/vbirdvg/vbirdlv
+vgchange -a n vbirdvg
+vgremove vbirdvg
+pvremove /dev/vda{5,6,7,8}
+```
+
+通过上述步骤，可以灵活管理LVM，实现文件系统的扩展、缩小和备份等功能，同时也能够正确关闭和移除LVM，确保系统的稳定性和数据的安全性。
+
+
+
+#### 原文：
 
 好了，我们将上述用过的一些指令给他汇整一下，提供给您参考参考：
 
