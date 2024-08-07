@@ -6,7 +6,7 @@
 
 ## 17.1 什么是 Daemon 与服务 (Service)
 
-在第十六章中，我们提到过“服务”。服务是常驻内存中的程序，可以提供系统或网络功能，英文称为“service”。在Unix-Like操作系统中，常见的说法是“启动某某daemon来提供某某功能”。Daemon和service有关，因为它们都能提供系统或网络功能。Daemon字面上意思是“守护神”或“恶魔”。
+**在第十六章中，我们提到过“服务”。服务是常驻内存中的程序，可以提供系统或网络功能，英文称为“service”。在Unix-Like操作系统中，常见的说法是“启动某某daemon来提供某某功能”。Daemon和service有关，因为它们都能提供系统或网络功能。**Daemon字面上意思是“守护神”或“恶魔”。
 
 简单来说，系统为了某些功能需要提供一些服务，这些服务称为service。实现这些service的程序称为daemon。例如，实现循环型例行性工作调度服务的程序为crond daemon。这样解释更容易理解。
 
@@ -60,13 +60,13 @@
 
 - 制定执行等级默认启动服务：
 
-  通过
+  **通过**
 
   ```
   chkconfig
   ```
 
-  命令管理默认启动服务。
+  **命令管理默认启动服务。**
 
   - 默认启动：`chkconfig daemon on`
   - 默认不启动：`chkconfig daemon off`
@@ -196,9 +196,9 @@ lrwxrwxrwx. 1 root root   17  5月  4 17:52 runlevel4.target -&gt; multi-user.ta
 
 ## 17.2 通过 systemctl 管理服务
 
-systemd通过名为systemctl的指令处理服务管理，替代了System V中需要的service、chkconfig、setup、init等指令。使用systemctl管理服务的操作更加集中和简便。以下是具体的操作方法和示例。
+**systemd通过名为systemctl的指令处理服务管理，替代了System V中需要的service、chkconfig、setup、init等指令。使用systemctl管理服务的操作更加集中和简便。**以下是具体的操作方法和示例。
 
-### 17.2.1 通过 systemctl 管理单一服务（service unit）的启动/开机启动与观察状态
+### ==17.2.1 通过 systemctl 管理单一服务（service unit）的启动/开机启动与观察状态（重点）==
 
 服务的启动有两个阶段：一个是开机时设置服务是否启动，另一个是立即启动或停止服务。以下是一些常用的命令：
 
@@ -233,7 +233,7 @@ is-enable ：开机时有没有默认要启用这个 unit
 1. 正常关闭atd服务：
 
 ```
-sh复制代码[root@study ~]# systemctl stop atd.service
+[root@study ~]# systemctl stop atd.service
 [root@study ~]# systemctl status atd.service
 ```
 
@@ -440,7 +440,7 @@ cups.service - CUPS Printing Service
 # 好佳在有恢复正常！
 ```
 
-### 17.2.2 通过 systemctl 观察系统上所有的服务
+### ==17.2.2 通过 systemctl 观察系统上所有的服务==
 
 可以通过`list-units`和`list-unit-files`命令查看所有服务及其状态。
 
@@ -530,7 +530,7 @@ cpupower.service  loaded inactive dead    Configure CPU power related settings
 # 确实有喔！可以改变 CPU 电源管理机制的服务哩！
 ```
 
-### 17.2.3 通过 systemctl 管理不同的操作环境（target unit）
+### ==17.2.3 通过 systemctl 管理不同的操作环境（target unit）==
 
 使用target管理不同的操作环境。
 
@@ -743,7 +743,7 @@ graphical.target
 
 
 
-### 17.2.5 与 systemd的daemon运行过程相关的目录简介
+### ==17.2.5 与 systemd的daemon运行过程相关的目录简介==
 
 相关目录：
 
@@ -839,7 +839,7 @@ http            80/udp          www www-http    # HyperText Transfer Protocol
 
 
 
-### 17.2.6 关闭网络服务
+### ==17.2.6 关闭网络服务==
 
 观察本机网络端口：
 
@@ -931,7 +931,7 @@ systemd 的配置文件主要存放在 `/usr/lib/systemd/system/` 目录内。�
 
 
 
-### 17.3.2 systemctl 配置文件的设置项目简介
+### ==17.3.2 systemctl 配置文件的设置项目简介==
 
 配置文件内容可以分为三个部分：[Unit]、[Service]、[Install]。以下是对各部分内容的详细说明：
 
@@ -1441,7 +1441,7 @@ Aug 13 07:50:31 study.centos.vbird systemd[1]: Started backup my server.
 
 ### systemd.timer 的优势
 
-相较于传统的 crond 服务，systemd.timer 具有以下优势：
+**相较于传统的 crond 服务，systemd.timer 具有以下优势：**
 
 - 所有的 systemd 服务产生的信息都会被记录 (log)，便于调试和排查问题。
 - 可以与其他 systemd 服务结合，进行更灵活的任务管理。
@@ -1719,7 +1719,7 @@ NextElapseUSecRealtime=45y 7month 1w 6d 10h 30min
 
 
 
-## 17.5 CentOS 7.x 默认启动的服务简易说明
+## ==17.5 CentOS 7.x 默认启动的服务简易说明==
 
 随着 Linux 上面软件支持性越来越多，加上自由软件蓬勃的发展，我们可以在 Linux 上面用的 daemons 真的越来越多了。所以，想要写完所有的 daemons 介绍几乎是不可能的，因此，鸟哥这里仅介绍几个很常见的 daemons 而已， 更多的信息呢，就得要麻烦你自己使用 systemctl list-unit-files --type=service 去查询啰！ 下面的建议主要是针对 Linux 单机服务器的角色来说明的，不是桌上型的环境喔！
 
